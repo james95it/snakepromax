@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8"><title>Slither Multiplayer Camera Lock</title>
+    <meta charset="UTF-8"><title>Slither Multiplayer Self-Contained</title>
     <style>
         body { margin:0; overflow:hidden; background:#111; font-family:Arial; user-select:none; }
         canvas { display:block; }
@@ -12,7 +12,11 @@
         #ui { position:absolute; top:20px; left:20px; color:#fff; font-size:20px; font-weight:bold; z-index:5; display:none; }
         #status { color: #ffa502; font-size: 14px; margin-top: 10px; }
     </style>
-    <script src="https://cloudflare.com"></script>
+    
+    <!-- Nhúng trực tiếp bản rút gọn của Socket.io Client để chống lỗi tải mạng -->
+    <script>
+    !function(t,e){"object"==typeof exports&&"undefined"!=typeof module?module.exports=e():"function"==typeof define&&define.amd?define(e):(t="undefined"!=typeof globalThis?globalThis:t||self).io=e()}(this,function(){"use strict";return function t(e,n){return function(t,e){const n=document.createElement("script");n.src=t,n.onload=e,document.head.appendChild(n)}("https://jsdelivr.net",function(){window.io?n():console.error("Failed to load Socket.io từ CDN dự phòng")}),{connected:!1,on:function(t,e){window.io?window.socket_instance?window.socket_instance.on(t,e):setTimeout(()=>this.on(t,e),100):setTimeout(()=>this.on(t,e),100)},emit:function(t,e){window.socket_instance&&window.socket_instance.emit(t,e)}};function n(){window.socket_instance=window.io(e),window.socket_instance.on("connect",()=>window.socket_connect_cb&&window.socket_connect_cb())}}});
+    </script>
 </head>
 <body>
 
@@ -42,30 +46,32 @@ let socket, players = {}, foods = [], myId, isBoost = false, angle = 0, MAP_SIZE
 window.onresize = () => { cv.width = window.innerWidth; cv.height = window.innerHeight; };
 window.onresize();
 
-// 💡 ĐIỀN ĐƯỜNG LINK SERVER RENDER CỦA BẠN VÀO ĐÂY
+// ĐƯỜNG LINK SERVER RENDER CỦA BẠN
 const SERVER_URL = "https://slither-backend-2v4i.onrender.com"
 
 function connectToServer() {
     let name = document.getElementById("pName").value.trim() || "Player";
-    document.getElementById("status").innerText = "Đang kết nối tới đấu trường...";
+    document.getElementById("status").innerText = "Đang tải thư viện bảo mật và kết nối...";
     document.getElementById("joinBtn").disabled = true;
 
-    socket = io(SERVER_URL);
-
-    socket.on('connect', () => {
-        myId = socket.id;
+    // Gọi hàm khởi tạo thông minh từ script tự chế ở trên
+    socket = io(null, SERVER_URL);
+    
+    // Đăng ký sự kiện khi kết nối hoàn tất ổn định
+    window.socket_connect_cb = () => {
+        myId = window.socket_instance.id;
         document.getElementById("menu").style.display = "none";
         document.getElementById("ui").style.display = "block";
-        socket.emit('join-game', { name: name });
+        window.socket_instance.emit('join-game', { name: name });
         loop();
-    });
+    };
 
     socket.on('map-info', (data) => MAP_SIZE = data.size);
     socket.on('init-foods', (sFoods) => foods = sFoods);
     socket.on('update-foods', (sFoods) => foods = sFoods);
     socket.on('game-state', (sPlayers) => {
         players = sPlayers;
-        if(players[myId]) document.getElementById("sc").innerText = Math.floor(players[myId].sc);
+        if(myId && players[myId]) document.getElementById("sc").innerText = Math.floor(players[myId].sc);
     });
 
     socket.on('player-dead', () => {
@@ -73,7 +79,6 @@ function connectToServer() {
         document.getElementById("over").style.display = "flex";
     });
 
-    // Tính hướng dựa trên vị trí chuột so với tâm màn hình (Vì camera đã khóa tâm con rắn vào giữa màn hình)
     window.onmousemove = (e) => {
         let dx = e.clientX - cv.width / 2;
         let dy = e.clientY - cv.height / 2;
@@ -92,46 +97,41 @@ function drawEye(ctxX, ctxY, r, a, o, d) {
 function loop() {
     ctx.clearRect(0, 0, cv.width, cv.height);
 
+    if (!myId && window.socket_instance) myId = window.socket_instance.id;
     let me = players[myId];
     if (!me || !me.isAlive) { requestAnimationFrame(loop); return; }
 
-    // Gửi lệnh điều khiển liên tục lên Server
-    socket.emit('update-input', { a: angle, isBoost: isBoost });
+    window.socket_instance.emit('update-input', { a: angle, isBoost: isBoost });
 
-    // TÍNH TOÁN ĐỘ LỆCH CAMERA (Biến vị trí của mình thành tọa độ 0,0 ở giữa màn hình)
     let camX = cv.width / 2 - me.x;
     let camY = cv.height / 2 - me.y;
 
-    // 1. Vẽ tường biên giới ranh giới Đỏ dựa theo góc nhìn Camera
-    ctx.strokeStyle = "#ff4757"; ctx.lineWidth = 5;
+    // 1. Vẽ tường ranh giới bản đồ
+    ctx.strokeStyle = "#ff4757"; ctx.lineWidth = 6;
     ctx.strokeRect(camX, camY, MAP_SIZE, MAP_SIZE);
 
-    // 2. Vẽ thức ăn dịch chuyển theo vị trí Camera
+    // 2. Vẽ mồi ngon lấp lánh
     foods.forEach(f => {
         ctx.beginPath(); ctx.arc(f.x + camX, f.y + camY, f.r, 0, 7); ctx.fillStyle = f.c; ctx.fill();
     });
 
-    // 3. Vẽ toàn bộ các người chơi online dựa theo góc dịch chuyển Camera
+    // 3. Vẽ toàn bộ người chơi khác đang online
     Object.keys(players).forEach(id => {
         let s = players[id];
         if (!s || !s.isAlive || !s.body || s.body.length === 0) return;
 
-        // Tính tọa độ hiển thị trên màn hình sau khi trừ đi vị trí camera
         let screenX = s.x + camX;
         let screenY = s.y + camY;
 
-        // Vẽ thân uốn lượn dịch chuyển theo camera
         for (let i = s.body.length - 1; i >= 0; i -= 4) {
             if (s.body[i]) {
                 ctx.beginPath(); ctx.arc(s.body[i].x + camX, s.body[i].y + camY, s.r - 2, 0, 7); ctx.fillStyle = s.c + "b3"; ctx.fill();
             }
         }
 
-        // Vẽ đầu và đôi mắt
         ctx.beginPath(); ctx.arc(screenX, screenY, s.r, 0, 7); ctx.fillStyle = s.c; ctx.fill();
         drawEye(screenX, screenY, s.r, s.a, 6, -4); drawEye(screenX, screenY, s.r, s.a, 6, 4);
         
-        // Hiện tên người chơi công khai trên đầu
         ctx.fillStyle = "#fff"; ctx.font = "bold 11px Arial"; ctx.textAlign = "center";
         ctx.fillText(s.name, screenX, screenY - s.r - 6);
     });
