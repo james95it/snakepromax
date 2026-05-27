@@ -80,9 +80,13 @@ function connectToServer() {
         }
     });
 
+   // Theo dõi hướng chuột điều khiển chuẩn xác dựa trên vị trí thực tế của đầu rắn
     window.onmousemove = (e) => {
-        let dx = e.clientX - cv.width/2;
-        let dy = e.clientY - cv.height/2;
+        let me = players[myId];
+        if (!me) return;
+        // Tính toán khoảng cách từ con trỏ chuột đến đúng vị trí đầu con rắn của bạn
+        let dx = e.clientX - me.x;
+        let dy = e.clientY - me.y;
         angle = Math.atan2(dy, dx);
     };
     window.onmousedown = (e) => { if(e.button === 0) isBoost = true; };
