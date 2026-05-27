@@ -14,9 +14,7 @@
     </style>
     
     <!-- Nhúng trực tiếp bản rút gọn của Socket.io Client để chống lỗi tải mạng -->
-    <script>
-    !function(t,e){"object"==typeof exports&&"undefined"!=typeof module?module.exports=e():"function"==typeof define&&define.amd?define(e):(t="undefined"!=typeof globalThis?globalThis:t||self).io=e()}(this,function(){"use strict";return function t(e,n){return function(t,e){const n=document.createElement("script");n.src=t,n.onload=e,document.head.appendChild(n)}("https://jsdelivr.net",function(){window.io?n():console.error("Failed to load Socket.io từ CDN dự phòng")}),{connected:!1,on:function(t,e){window.io?window.socket_instance?window.socket_instance.on(t,e):setTimeout(()=>this.on(t,e),100):setTimeout(()=>this.on(t,e),100)},emit:function(t,e){window.socket_instance&&window.socket_instance.emit(t,e)}};function n(){window.socket_instance=window.io(e),window.socket_instance.on("connect",()=>window.socket_connect_cb&&window.socket_connect_cb())}}});
-    </script>
+    <script src="https://socket.io"></script>
 </head>
 <body>
 
