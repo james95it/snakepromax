@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Slither Space Fixed</title>
+    <title>Slither Pro Live</title>
     <style>
         body { margin:0; overflow:hidden; background:#0b0c10; font-family:Arial; user-select:none; touch-action: none; }
         canvas { display:block; position: absolute; top: 0; left: 0; }
@@ -45,18 +45,19 @@
 <script>
 const cv = document.getElementById("cv"), ctx = cv.getContext("2d"), bg = document.getElementById("gridBg");
 let ws, players = {}, foods = [], myId, isBoost = false, angle = 0, MAP_SIZE = 3500;
+let lastSendTime = 0; // Biến hãm băng thông gửi tin mạng từ client
 
 const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
 
 window.onresize = () => { cv.width = window.innerWidth; cv.height = window.innerHeight; };
 window.onresize();
 
-// 💡 ĐIỀN CHÍNH XÁC ĐƯỜNG LINK HUGGING FACE CỦA BẠN VÀO ĐÂY (CÓ ĐUÔI /ws)
+// 💡 ĐIỀN ĐƯỜNG LINK HUGGING FACE /ws CHUẨN CỦA BẠN VÀO ĐÂY
 const SERVER_URL = "wss://james95it-slither-backend.hf.space/ws";
 
 function connectToServer() {
     let name = document.getElementById("pName").value.trim() || "Player";
-    document.getElementById("status").innerText = "Đang kết nối vũ trụ...";
+    document.getElementById("status").innerText = "Đang đồng bộ mạng vũ trụ...";
     document.getElementById("joinBtn").disabled = true;
 
     ws = new WebSocket(SERVER_URL);
@@ -77,7 +78,6 @@ function connectToServer() {
         } else if (data.type === 'state') {
             players = data.players; 
             foods = data.foods;
-            // SỬA LỖI BIẾN SỐ: Đổi từ .score thành .sc đồng bộ với Server
             if(myId && players[myId]) {
                 document.getElementById("sc").innerText = Math.floor(players[myId].sc * 10);
             }
@@ -98,7 +98,7 @@ function connectToServer() {
     } else {
         window.addEventListener("touchmove", (e) => {
             let t = e.touches[0];
-            if (t.clientX > window.innerWidth - 120 && t.clientY > window.innerHeight - 120) return;
+            if (!t || (t.clientX > window.innerWidth - 120 && t.clientY > window.innerHeight - 120)) return;
             angle = Math.atan2(t.clientY - cv.height / 2, t.clientX - cv.width / 2);
         }, { passive: true });
 
@@ -123,14 +123,16 @@ function loop() {
     ctx.clearRect(0, 0, cv.width, cv.height);
 
     let me = players[myId];
-    // SỬA LỖI KHỞI TẠO NGẦM: Nếu chưa nhận đủ dữ liệu me từ server, bắt vòng lặp chờ chứ không đứng im màn hình
     if (!me || !me.isAlive) { 
         requestAnimationFrame(loop); 
         return; 
     }
 
-    if (ws && ws.readyState === WebSocket.OPEN) {
+    // 🚀 TỐI ƯU GỬI TIN: Chỉ gửi tọa độ chuột lên server tối đa 1 lần mỗi 22ms (khoảng 45Hz) để lọt qua Proxy
+    let now = Date.now();
+    if (ws && ws.readyState === WebSocket.OPEN && (now - lastSendTime > 22)) {
         ws.send(JSON.stringify({ type: 'input', a: angle, isBoost: isBoost }));
+        lastSendTime = now;
     }
 
     let camX = cv.width / 2 - me.x;
@@ -150,21 +152,26 @@ function loop() {
     if (players && Object.keys(players).length > 0) {
         Object.keys(players).forEach(id => {
             let s = players[id];
-            if (!s || !s.isAlive || !s.body || s.body.length === 0) return;
-
+            // Khắc phục chống lỗi rỗng mảng: Tự động dùng tọa độ x,y gốc nếu mảng body chưa kịp đồng bộ gói tin đầu
+            if (!s || !s.isAlive) return;
+            
             let screenX = s.x + camX; 
             let screenY = s.y + camY;
             let spacing = 4;
 
-            for (let i = s.body.length - 1; i >= 0; i -= spacing) {
-                if (s.body[i]) {
-                    let currentR = s.r - 2;
-                    if (s.isBoosting && i > s.body.length * 0.6) currentR -= 2;
-                    ctx.beginPath(); ctx.arc(s.body[i].x + camX, s.body[i].y + camY, currentR, 0, 7);
-                    ctx.fillStyle = s.isBoosting ? "#ff9f43" : s.c + "b3"; ctx.fill();
+            // Nếu mảng thân tồn tại, tiến hành vẽ uốn khúc
+            if (s.body && s.body.length > 0) {
+                for (let i = s.body.length - 1; i >= 0; i -= spacing) {
+                    if (s.body[i]) {
+                        let currentR = s.r - 2;
+                        if (s.isBoosting && i > s.body.length * 0.6) currentR -= 2;
+                        ctx.beginPath(); ctx.arc(s.body[i].x + camX, s.body[i].y + camY, currentR, 0, 7);
+                        ctx.fillStyle = s.isBoosting ? "#ff9f43" : s.c + "b3"; ctx.fill();
+                    }
                 }
             }
 
+            // Vẽ đầu và mắt lập thể
             ctx.beginPath(); ctx.arc(screenX, screenY, s.r, 0, 7); ctx.fillStyle = s.c; ctx.fill();
             
             let ex1 = screenX + Math.cos(s.a)*6 + Math.cos(s.a-4)*4, ey1 = screenY + Math.sin(s.a)*6 + Math.sin(s.a-4)*4;
