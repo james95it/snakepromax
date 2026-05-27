@@ -43,19 +43,17 @@ let ws,serverPlayers={},foods=[],myId,isBoost=false,angle=0,MAP_SIZE=3500,lastSe
 const isMobile=/Android|iPhone|iPad/i.test(navigator.userAgent);
 window.onresize=()=>{cv.width=window.innerWidth;cv.height=window.innerHeight;};window.onresize();
 
-// Định cấu hình URL endpoint
 const SERVER_URL = "wss://james95it-slither-backend.hf.space/ws";
 const HTTP_URL = "https://james95it-slither-backend.hf.space/";
 
-async function connectToServer(){
+function connectToServer(){
     let name=document.getElementById("pName").value.trim()||"Player";
-    document.getElementById("status").innerText="Đang đánh thức server Hugging Face...";
+    document.getElementById("status").innerText="Đang kết nối...";
     document.getElementById("joinBtn").disabled=true;
     
-    // Đánh thức Hugging Face đề phòng Space đang ngủ (Sleep mode)
-    try { await fetch(HTTP_URL); } catch(e) {}
+    // Gửi tín hiệu đánh thức ngầm (không dùng await để tránh treo game)
+    fetch(HTTP_URL, { mode: 'no-cors' }).catch(()=>{});
 
-    document.getElementById("status").innerText="Đang kết nối cổng WebSocket...";
     ws=new WebSocket(SERVER_URL);
     ws.onopen=()=>{
         ws.send(JSON.stringify({type:'join',name:name}));document.getElementById("menu").style.display="none";
@@ -95,7 +93,10 @@ function drawEye(cx,cy,r,a,o,d){
 }
 function loop(){
     ctx.clearRect(0,0,cv.width,cv.height);
-    let now=Date.now();if(ws&&ws.readyState===WebSocket.OPEN&&(now-lastSendTime>35)){ws.send(JSON.stringify({type:'input',a:angle,isBoost:isBoost}));lastSendTime=now;}
+    let now=Date.now();
+    if(ws&&ws.readyState===WebSocket.OPEN&&(now-lastSendTime>40)){
+        ws.send(JSON.stringify({type:'input',a:angle,isBoost:isBoost}));lastSendTime=now;
+    }
     Object.keys(serverPlayers).forEach(id=>{
         let s=serverPlayers[id];if(!s||!s.isAlive){delete renderPlayers[id];return;}
         if(!renderPlayers[id])renderPlayers[id]={x:s.x,y:s.y,a:s.a,r:s.r,c:s.c,name:s.name,isBoosting:s.isBoosting,body:JSON.parse(JSON.stringify(s.body))};
@@ -112,7 +113,6 @@ function loop(){
     Object.keys(renderPlayers).forEach(id=>{
         let s=renderPlayers[id],sx=s.x+camX,sy=s.y+camY;
         if(s.body&&s.body.length>0){
-            // Thay đổi bước nhảy từ 4 xuống 2 giúp thân khít mịn màng, không bị lỗ hổng
             for(let i=s.body.length-1;i>=0;i-=2)if(s.body[i]){
                 let cr=s.r*0.9;
                 ctx.beginPath();ctx.arc(s.body[i].x+camX,s.body[i].y+camY,cr,0,7);ctx.fillStyle=s.isBoosting?"#ff4757":s.c+"cc";ctx.fill();
