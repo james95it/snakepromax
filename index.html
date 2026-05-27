@@ -1,63 +1,57 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8"><title>Slither Multiplayer Pure WS</title>
+    <meta charset="UTF-8"><title>Slither Infinite Space</title>
     <style>
-        body { margin:0; overflow:hidden; background:#111; font-family:Arial; user-select:none; }
+        body { margin:0; overflow:hidden; background:#0b0c10; font-family:'Segoe UI',Arial; user-select:none; }
         canvas { display:block; }
-        .box { position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(22,22,26,0.95); display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:10; }
-        .card { background:#242529; padding:30px; border-radius:12px; text-align:center; border:2px solid #2ecc71; color:#fff; }
-        input, button { padding:12px; font-size:16px; border-radius:6px; border:none; margin:8px; }
-        button { background:#2ecc71; color:#fff; font-weight:bold; cursor:pointer; }
-        #ui { position:absolute; top:20px; left:20px; color:#fff; font-size:20px; font-weight:bold; z-index:5; display:none; }
-        #status { color: #ffa502; font-size: 14px; margin-top: 10px; }
-        
-        /* Giao diện Bảng điểm Top Score */
-        #leaderboard { position:absolute; top:20px; right:20px; color:#fff; background:rgba(0,0,0,0.6); padding:15px; border-radius:8px; min-width:180px; font-size:14px; box-shadow:0 4px 10px rgba(0,0,0,0.3); z-index:5; display:none; }
-        #leaderboard h3 { margin:0 0 8px 0; color:#eccc68; text-align:center; font-size:15px; letter-spacing:1px; }
+        .box { position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(11,12,16,0.95); display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:10; }
+        .card { background:#1f2833; padding:35px; border-radius:16px; text-align:center; border:2px solid #45f3ff; color:#fff; box-shadow: 0 0 20px rgba(69,243,255,0.2); }
+        input, button { padding:12px 20px; font-size:16px; border-radius:8px; border:none; margin:10px; outline:none; }
+        input { width:220px; text-align:center; background:#fff; color:#0b0c10; font-weight:bold; }
+        button { background:#45f3ff; color:#0b0c10; font-weight:bold; cursor:pointer; transition:0.2s; }
+        button:hover { transform:scale(1.05); box-shadow:0 0 15px #45f3ff; }
+        #ui { position:absolute; top:20px; left:20px; color:#45f3ff; font-size:22px; font-weight:bold; z-index:5; display:none; text-shadow:0 0 10px rgba(69,243,255,0.5); }
+        #leaderboard { position:absolute; top:20px; right:20px; color:#fff; background:rgba(31,40,51,0.75); padding:15px; border-radius:10px; min-width:190px; font-size:14px; box-shadow:0 4px 15px rgba(0,0,0,0.5); border:1px solid rgba(69,243,255,0.2); z-index:5; display:none; backdrop-filter:blur(5px); }
+        #leaderboard h3 { margin:0 0 8px 0; color:#45f3ff; text-align:center; font-size:14px; letter-spacing:1px; }
     </style>
 </head>
 <body>
 
 <div id="menu" class="box">
     <div class="card">
-        <h2>SLITHER PURE WEBSOCKET</h2>
-        <input type="text" id="pName" value="Player_" maxlength="10">
-        <br><button id="joinBtn" onclick="connectToServer()">VÀO CHIẾN</button>
-        <div id="status"></div>
+        <h1 style="color:#45f3ff; margin:0 0 10px 0; letter-spacing:3px;">SLITHER SPACE</h1>
+        <p style="color:#c5c6c7; margin:0 0 20px 0; font-size:14px;">Giữ chuột trái để tăng tốc năng lượng</p>
+        <input type="text" id="pName" value="PhiThuyền_" maxlength="10">
+        <br><button id="joinBtn" onclick="connectToServer()">PHÓNG XUẤT</button>
+        <div id="status" style="color:#ffa502; font-size:13px; margin-top:10px;"></div>
     </div>
 </div>
 
 <div id="over" class="box" style="display:none;">
-    <div class="card" style="border-color:#ff4757;">
-        <h2 style="color:#ff4757; margin:0 0 10px 0;">TÈO CMNR!</h2>
-        <button onclick="location.reload()" style="background:#ff4757;">CHƠI LẠI</button>
+    <div class="card" style="border-color:#ff4757; box-shadow:0 0 20px rgba(255,71,87,0.3);">
+        <h2 style="color:#ff4757; margin:0 0 15px 0; letter-spacing:1px;">PHI THUYỀN BỊ NỔ!</h2>
+        <button onclick="location.reload()" style="background:#ff4757; color:#fff;">TÁI SINH</button>
     </div>
 </div>
 
-<div id="ui">Điểm: <span id="sc">0</span></div>
-
-<!-- Giao diện chứa danh sách Top Score -->
-<div id="leaderboard">
-    <h3>BẢNG XẾP HẠNG</h3>
-    <div id="lbl"></div>
-</div>
-
+<div id="ui">Năng lượng: <span id="sc">0</span></div>
+<div id="leaderboard"><h3>TOP PHI THUYỀN</h3><div id="lbl"></div></div>
 <canvas id="cv"></canvas>
 
 <script>
 const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
-let ws, players = {}, foods = [], myId, isBoost = false, angle = 0, MAP_SIZE = 1600;
+let ws, players = {}, foods = [], myId, isBoost = false, angle = 0, MAP_SIZE = 3500;
 
 window.onresize = () => { cv.width = window.innerWidth; cv.height = window.innerHeight; };
 window.onresize();
 
-// 💡 LINK SERVER RENDER CỦA BẠN (GIỮ NGUYÊN GIAO THỨC WSS://)
+// 💡 ĐIỀN LINK RENDER CỦA BẠN VÀO ĐÂY (GIỮ NGUYÊN WSS://)
 const SERVER_URL = "wss://slither-backend-2v4i.onrender.com";
 
 function connectToServer() {
     let name = document.getElementById("pName").value.trim() || "Player";
-    document.getElementById("status").innerText = "Đang kết nối trực tiếp qua mạng thuần...";
+    document.getElementById("status").innerText = "Đang mở cổng không gian kết nối...";
     document.getElementById("joinBtn").disabled = true;
 
     ws = new WebSocket(SERVER_URL);
@@ -65,7 +59,6 @@ function connectToServer() {
     ws.onopen = () => {
         ws.send(JSON.stringify({ type: 'join', name: name }));
         document.getElementById("menu").style.display = "none";
-        // Hiện cả ô điểm góc trái và bảng xếp hạng góc phải
         document.getElementById("ui").style.display = document.getElementById("leaderboard").style.display = "block";
         loop();
     };
@@ -73,15 +66,10 @@ function connectToServer() {
     ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
         if (data.type === 'init') {
-            myId = data.myId;
-            foods = data.foods;
-            MAP_SIZE = data.mapSize;
+            myId = data.myId; foods = data.foods; MAP_SIZE = data.mapSize;
         } else if (data.type === 'state') {
-            players = data.players;
-            foods = data.foods;
-            if(myId && players[myId]) document.getElementById("sc").innerText = Math.floor(players[myId].sc);
-            
-            // TỰ ĐỘNG CẬP NHẬT BẢNG XẾP HẠNG TOP SCORE
+            players = data.players; foods = data.foods;
+            if(myId && players[myId]) document.getElementById("sc").innerText = Math.floor(players[myId].sc * 10);
             updateLeaderboard();
         } else if (data.type === 'dead') {
             document.getElementById("ui").style.display = document.getElementById("leaderboard").style.display = "none";
@@ -90,7 +78,7 @@ function connectToServer() {
     };
 
     ws.onerror = () => {
-        document.getElementById("status").innerText = "Không thể kết nối! Máy chủ có thể đang thức dậy, hãy thử lại.";
+        document.getElementById("status").innerText = "Lỗi kết nối vũ trụ! Đang khởi động lại động cơ, thử lại sau...";
         document.getElementById("joinBtn").disabled = false;
     };
 
@@ -101,21 +89,13 @@ function connectToServer() {
     window.onmouseup = (e) => { if(e.button === 0) isBoost = false; };
 }
 
-// Hàm lọc điểm, sắp xếp lớn đến bé và hiển thị lên UI
 function updateLeaderboard() {
-    let activePlayers = Object.keys(players)
-        .map(id => players[id])
-        .filter(p => p && p.isAlive);
-
-    // Sắp xếp người chơi theo điểm giảm dần
-    activePlayers.sort((a, b) => b.sc - a.sc);
-
+    let active = Object.keys(players).map(id => players[id]).filter(p => p && p.isAlive);
+    active.sort((a, b) => b.sc - a.sc);
     let lbHTML = "";
-    // Lấy tối đa 5 người chơi có điểm cao nhất
-    activePlayers.slice(0, 5).forEach((p, idx) => {
-        // Nếu là chính mình thì tô chữ màu xanh lá cho nổi bật
-        let style = (p.id === myId) ? "color:#2ecc71;font-weight:bold;" : "";
-        lbHTML += `<div style="${style}">${idx + 1}. ${p.name}: ${Math.floor(p.sc)}</div>`;
+    active.slice(0, 5).forEach((p, idx) => {
+        let style = (p.id === myId) ? "color:#45f3ff;font-weight:bold;" : "";
+        lbHTML += `<div style="${style}">${idx + 1}. ${p.name}: ${Math.floor(p.sc * 10)}</div>`;
     });
     document.getElementById("lbl").innerHTML = lbHTML;
 }
@@ -139,16 +119,29 @@ function loop() {
     let camX = cv.width / 2 - me.x;
     let camY = cv.height / 2 - me.y;
 
-    // 1. Tường biên
-    ctx.strokeStyle = "#ff4757"; ctx.lineWidth = 6;
+    // 🚀 TÍNH NĂNG 2: VẼ LƯỚI KHÔNG GIAN ĐỘNG (THAY CHO Ô VUÔNG ĐỎ)
+    ctx.strokeStyle = "rgba(69, 243, 255, 0.05)"; ctx.lineWidth = 1;
+    let gridSize = 50;
+    // Vẽ lưới dọc
+    for (let x = camX % gridSize; x < cv.width; x += gridSize) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, cv.height); ctx.stroke();
+    }
+    // Vẽ lưới ngang
+    for (let y = camY % gridSize; y < cv.height; y += gridSize) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cv.width, y); ctx.stroke();
+    }
+
+    // Vẽ biên giới mờ ảo bảo vệ thiên hà ngoài rìa
+    ctx.strokeStyle = "rgba(255, 71, 87, 0.3)"; ctx.lineWidth = 4;
     ctx.strokeRect(camX, camY, MAP_SIZE, MAP_SIZE);
 
-    // 2. Thức ăn
+    // 🚀 TÍNH NĂNG 3: VẼ THỨC ĂN PHÁT SÁNG NĂNG LƯỢNG
     foods.forEach(f => {
-        ctx.beginPath(); ctx.arc(f.x + camX, f.y + camY, f.r, 0, 7); ctx.fillStyle = f.c; ctx.fill();
+        ctx.beginPath(); ctx.arc(f.x + camX, f.y + camY, f.r, 0, 7); ctx.fillStyle = f.c;
+        ctx.fill();
     });
 
-    // 3. Người chơi
+    // 4. Vẽ người chơi
     Object.keys(players).forEach(id => {
         let s = players[id];
         if (!s || !s.isAlive || !s.body || s.body.length === 0) return;
@@ -156,12 +149,20 @@ function loop() {
         let screenX = s.x + camX;
         let screenY = s.y + camY;
 
+        // Vẽ khớp thân uốn lượn uốn khúc kịch tính
         for (let i = s.body.length - 1; i >= 0; i -= 4) {
             if (s.body[i]) {
-                ctx.beginPath(); ctx.arc(s.body[i].x + camX, s.body[i].y + camY, s.r - 2, 0, 7); ctx.fillStyle = s.c + "b3"; ctx.fill();
+                // Nếu đang tăng tốc, thân nhỏ lại một chút ở đuôi tạo hiệu ứng khí động học
+                let currentR = s.r - 2;
+                if (s.isBoosting && i > s.body.length * 0.6) currentR -= 2;
+                
+                ctx.beginPath(); ctx.arc(s.body[i].x + camX, s.body[i].y + camY, currentR, 0, 7);
+                ctx.fillStyle = s.isBoosting ? "#ff9f43" : s.c + "b3"; // Đuôi chuyển lửa cam khi tăng tốc
+                ctx.fill();
             }
         }
 
+        // Vẽ đầu và mắt nhìn lập thể
         ctx.beginPath(); ctx.arc(screenX, screenY, s.r, 0, 7); ctx.fillStyle = s.c; ctx.fill();
         drawEye(screenX, screenY, s.r, s.a, 6, -4); drawEye(screenX, screenY, s.r, s.a, 6, 4);
         
