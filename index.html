@@ -43,12 +43,19 @@ let ws,serverPlayers={},foods=[],myId,isBoost=false,angle=0,MAP_SIZE=3500,lastSe
 const isMobile=/Android|iPhone|iPad/i.test(navigator.userAgent);
 window.onresize=()=>{cv.width=window.innerWidth;cv.height=window.innerHeight;};window.onresize();
 
-// 💡 ĐIỀN ĐƯỜNG LINK HUGGING FACE /ws CHUẨN CỦA BẠN VÀO ĐÂY
+// Định cấu hình URL endpoint
 const SERVER_URL = "wss://james95it-slither-backend.hf.space/ws";
+const HTTP_URL = "https://james95it-slither-backend.hf.space/";
 
-function connectToServer(){
+async function connectToServer(){
     let name=document.getElementById("pName").value.trim()||"Player";
-    document.getElementById("status").innerText="Đang kết nối...";document.getElementById("joinBtn").disabled=true;
+    document.getElementById("status").innerText="Đang đánh thức server Hugging Face...";
+    document.getElementById("joinBtn").disabled=true;
+    
+    // Đánh thức Hugging Face đề phòng Space đang ngủ (Sleep mode)
+    try { await fetch(HTTP_URL); } catch(e) {}
+
+    document.getElementById("status").innerText="Đang kết nối cổng WebSocket...";
     ws=new WebSocket(SERVER_URL);
     ws.onopen=()=>{
         ws.send(JSON.stringify({type:'join',name:name}));document.getElementById("menu").style.display="none";
@@ -63,7 +70,10 @@ function connectToServer(){
             if(myId&&serverPlayers[myId])document.getElementById("sc").innerText=Math.floor(serverPlayers[myId].sc*10);updateLb();
         }else if(d.type==='dead'){document.getElementById("ui").style.display=document.getElementById("leaderboard").style.display="none";document.getElementById("boostBtn").style.display="none";document.getElementById("over").style.display="flex";}
     };
-    ws.onerror=()=>{document.getElementById("joinBtn").disabled=false;};
+    ws.onerror=()=>{
+        document.getElementById("joinBtn").disabled=false;
+        document.getElementById("status").innerText="Kết nối thất bại. Thử lại sau!";
+    };
     if(!isMobile){
         window.onmousemove=(e)=>{angle=Math.atan2(e.clientY-cv.height/2,e.clientX-cv.width/2);};
         window.onmousedown=(e)=>{if(e.button===0)isBoost=true;};window.onmouseup=(e)=>{if(e.button===0)isBoost=false;};
@@ -75,41 +85,42 @@ function connectToServer(){
 function updateLb(){
     let act=Object.keys(serverPlayers).map(id=>serverPlayers[id]).filter(p=>p&&p.isAlive);act.sort((a,b)=>b.sc-a.sc);
     let html="<h4 style='margin:0 0 5px 0;color:#45f3ff;text-align:center;'>TOP RANK</h4>";
-    act.slice(0,4).forEach((p,idx)=>{let style=(p.id===myId)?"color:#45f3ff;font-weight:bold;":"";html+=`<div style="${style}">${idx+1}. ${p.name}: ${Math.floor(p.sc*10)}</div>`;});
+    act.slice(0,5).forEach((p,idx)=>{let style=(p.id===myId)?"color:#45f3ff;font-weight:bold;":"";html+=`<div style="${style}">${idx+1}. ${p.name}: ${Math.floor(p.sc*10)}</div>`;});
     document.getElementById("lbl").innerHTML=html;
 }
 const lerp=(s,e,a)=>(1-a)*s+a*e;
 function drawEye(cx,cy,r,a,o,d){
     let ex=cx+Math.cos(a)*o+Math.cos(a+d)*d,ey=cy+Math.sin(a)*o+Math.sin(a+d)*d;
-    ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(ex,ey,3,0,7);ctx.fill();
+    ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(ex,ey,Math.max(2, r*0.2),0,7);ctx.fill();
 }
 function loop(){
     ctx.clearRect(0,0,cv.width,cv.height);
-    let now=Date.now();if(ws&&ws.readyState===WebSocket.OPEN&&(now-lastSendTime>40)){ws.send(JSON.stringify({type:'input',a:angle,isBoost:isBoost}));lastSendTime=now;}
+    let now=Date.now();if(ws&&ws.readyState===WebSocket.OPEN&&(now-lastSendTime>35)){ws.send(JSON.stringify({type:'input',a:angle,isBoost:isBoost}));lastSendTime=now;}
     Object.keys(serverPlayers).forEach(id=>{
         let s=serverPlayers[id];if(!s||!s.isAlive){delete renderPlayers[id];return;}
         if(!renderPlayers[id])renderPlayers[id]={x:s.x,y:s.y,a:s.a,r:s.r,c:s.c,name:s.name,isBoosting:s.isBoosting,body:JSON.parse(JSON.stringify(s.body))};
-        let rP=renderPlayers[id];rP.x=lerp(rP.x,s.x,0.28);rP.y=lerp(rP.y,s.y,0.28);rP.a=lerp(rP.a,s.a,0.3);rP.isBoosting=s.isBoosting;rP.r=s.r;
+        let rP=renderPlayers[id];rP.x=lerp(rP.x,s.x,0.25);rP.y=lerp(rP.y,s.y,0.25);rP.a=lerp(rP.a,s.a,0.25);rP.isBoosting=s.isBoosting;rP.r=s.r;
         if(s.body&&s.body.length>0){
             if(rP.body.length!==s.body.length)rP.body=JSON.parse(JSON.stringify(s.body));
-            for(let i=0;i<s.body.length;i++)if(rP.body[i]&&s.body[i]){rP.body[i].x=lerp(rP.body[i].x,s.body[i].x,0.28);rP.body[i].y=lerp(rP.body[i].y,s.body[i].y,0.28);}
+            for(let i=0;i<s.body.length;i++)if(rP.body[i]&&s.body[i]){rP.body[i].x=lerp(rP.body[i].x,s.body[i].x,0.25);rP.body[i].y=lerp(rP.body[i].y,s.body[i].y,0.25);}
         }
     });
     let me=renderPlayers[myId];if(!me){requestAnimationFrame(loop);return;}
     let camX=cv.width/2-me.x,camY=cv.height/2-me.y;bg.style.backgroundPosition=`${camX}px ${camY}px`;
-    ctx.strokeStyle="rgba(255,71,87,0.2)";ctx.lineWidth=4;ctx.strokeRect(camX,camY,MAP_SIZE,MAP_SIZE);
+    ctx.strokeStyle="rgba(69,243,255,0.15)";ctx.lineWidth=6;ctx.strokeRect(camX,camY,MAP_SIZE,MAP_SIZE);
     foods.forEach(f=>{ctx.beginPath();ctx.arc(f.x+camX,f.y+camY,f.r,0,7);ctx.fillStyle=f.c;ctx.fill();});
     Object.keys(renderPlayers).forEach(id=>{
         let s=renderPlayers[id],sx=s.x+camX,sy=s.y+camY;
         if(s.body&&s.body.length>0){
-            for(let i=s.body.length-1;i>=0;i-=4)if(s.body[i]){
-                let cr=s.r-2;if(s.isBoosting&&i>s.body.length*0.6)cr-=2;
-                ctx.beginPath();ctx.arc(s.body[i].x+camX,s.body[i].y+camY,cr,0,7);ctx.fillStyle=s.isBoosting?"#ff9f43":s.c+"b3";ctx.fill();
+            // Thay đổi bước nhảy từ 4 xuống 2 giúp thân khít mịn màng, không bị lỗ hổng
+            for(let i=s.body.length-1;i>=0;i-=2)if(s.body[i]){
+                let cr=s.r*0.9;
+                ctx.beginPath();ctx.arc(s.body[i].x+camX,s.body[i].y+camY,cr,0,7);ctx.fillStyle=s.isBoosting?"#ff4757":s.c+"cc";ctx.fill();
             }
         }
         ctx.beginPath();ctx.arc(sx,sy,s.r,0,7);ctx.fillStyle=s.c;ctx.fill();
-        drawEye(sx,sy,s.r,s.a,6,-4);drawEye(sx,sy,s.r,s.a,6,4);
-        ctx.fillStyle="#fff";ctx.font="bold 11px Arial";ctx.textAlign="center";ctx.fillText(s.name,sx,sy-s.r-6);
+        drawEye(sx,sy,s.r,s.a,s.r*0.5,-s.r*0.3);drawEye(sx,sy,s.r,s.a,s.r*0.5,s.r*0.3);
+        ctx.fillStyle="#fff";ctx.font="bold 12px Arial";ctx.textAlign="center";ctx.fillText(s.name,sx,sy-s.r-8);
     });
     requestAnimationFrame(loop);
 }
