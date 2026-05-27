@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8"><title>Slither Multiplayer Self-Contained</title>
+    <meta charset="UTF-8"><title>Slither Multiplayer Pure WS</title>
     <style>
         body { margin:0; overflow:hidden; background:#111; font-family:Arial; user-select:none; }
         canvas { display:block; }
@@ -12,15 +12,12 @@
         #ui { position:absolute; top:20px; left:20px; color:#fff; font-size:20px; font-weight:bold; z-index:5; display:none; }
         #status { color: #ffa502; font-size: 14px; margin-top: 10px; }
     </style>
-    
-    <!-- Nhúng trực tiếp bản rút gọn của Socket.io Client để chống lỗi tải mạng -->
-    <script src="https://socket.io"></script>
 </head>
 <body>
 
 <div id="menu" class="box">
     <div class="card">
-        <h2>SLITHER MULTIPLAYER</h2>
+        <h2>SLITHER PURE WEBSOCKET</h2>
         <input type="text" id="pName" value="Player_" maxlength="10">
         <br><button id="joinBtn" onclick="connectToServer()">VÀO CHIẾN</button>
         <div id="status"></div>
@@ -39,48 +36,52 @@
 
 <script>
 const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
-let socket, players = {}, foods = [], myId, isBoost = false, angle = 0, MAP_SIZE = 1600;
+let ws, players = {}, foods = [], myId, isBoost = false, angle = 0, MAP_SIZE = 1600;
 
 window.onresize = () => { cv.width = window.innerWidth; cv.height = window.innerHeight; };
 window.onresize();
 
-// ĐƯỜNG LINK SERVER RENDER CỦA BẠN
-const SERVER_URL = "https://slither-backend-2v4i.onrender.com"
+// 💡 ĐỔI CHỮ https:// THÀNH wss:// VÀ THAY ĐƯỜNG LINK RENDER CỦA BẠN VÀO ĐÂY
+const SERVER_URL = "wss://slither-backend-2v4i.onrender.com";
 
 function connectToServer() {
     let name = document.getElementById("pName").value.trim() || "Player";
-    document.getElementById("status").innerText = "Đang tải thư viện bảo mật và kết nối...";
+    document.getElementById("status").innerText = "Đang kết nối trực tiếp qua mạng thuần...";
     document.getElementById("joinBtn").disabled = true;
 
-    // Gọi hàm khởi tạo thông minh từ script tự chế ở trên
-    socket = io(null, SERVER_URL);
-    
-    // Đăng ký sự kiện khi kết nối hoàn tất ổn định
-    window.socket_connect_cb = () => {
-        myId = window.socket_instance.id;
+    // Sử dụng bộ engine WebSocket có sẵn 100% trong mọi trình duyệt hiện đại
+    ws = new WebSocket(SERVER_URL);
+
+    ws.onopen = () => {
+        ws.send(JSON.stringify({ type: 'join', name: name }));
         document.getElementById("menu").style.display = "none";
         document.getElementById("ui").style.display = "block";
-        window.socket_instance.emit('join-game', { name: name });
         loop();
     };
 
-    socket.on('map-info', (data) => MAP_SIZE = data.size);
-    socket.on('init-foods', (sFoods) => foods = sFoods);
-    socket.on('update-foods', (sFoods) => foods = sFoods);
-    socket.on('game-state', (sPlayers) => {
-        players = sPlayers;
-        if(myId && players[myId]) document.getElementById("sc").innerText = Math.floor(players[myId].sc);
-    });
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'init') {
+            myId = data.myId;
+            foods = data.foods;
+            MAP_SIZE = data.mapSize;
+        } else if (data.type === 'state') {
+            players = data.players;
+            foods = data.foods;
+            if(myId && players[myId]) document.getElementById("sc").innerText = Math.floor(players[myId].sc);
+        } else if (data.type === 'dead') {
+            document.getElementById("ui").style.display = "none";
+            document.getElementById("over").style.display = "flex";
+        }
+    };
 
-    socket.on('player-dead', () => {
-        document.getElementById("ui").style.display = "none";
-        document.getElementById("over").style.display = "flex";
-    });
+    ws.onerror = () => {
+        document.getElementById("status").innerText = "Không thể kết nối! Máy chủ có thể đang thức dậy, hãy thử lại.";
+        document.getElementById("joinBtn").disabled = false;
+    };
 
     window.onmousemove = (e) => {
-        let dx = e.clientX - cv.width / 2;
-        let dy = e.clientY - cv.height / 2;
-        angle = Math.atan2(dy, dx);
+        angle = Math.atan2(e.clientY - cv.height / 2, e.clientX - cv.width / 2);
     };
     window.onmousedown = (e) => { if(e.button === 0) isBoost = true; };
     window.onmouseup = (e) => { if(e.button === 0) isBoost = false; };
@@ -95,25 +96,26 @@ function drawEye(ctxX, ctxY, r, a, o, d) {
 function loop() {
     ctx.clearRect(0, 0, cv.width, cv.height);
 
-    if (!myId && window.socket_instance) myId = window.socket_instance.id;
     let me = players[myId];
     if (!me || !me.isAlive) { requestAnimationFrame(loop); return; }
 
-    window.socket_instance.emit('update-input', { a: angle, isBoost: isBoost });
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'input', a: angle, isBoost: isBoost }));
+    }
 
     let camX = cv.width / 2 - me.x;
     let camY = cv.height / 2 - me.y;
 
-    // 1. Vẽ tường ranh giới bản đồ
+    // 1. Tường biên
     ctx.strokeStyle = "#ff4757"; ctx.lineWidth = 6;
     ctx.strokeRect(camX, camY, MAP_SIZE, MAP_SIZE);
 
-    // 2. Vẽ mồi ngon lấp lánh
+    // 2. Thức ăn
     foods.forEach(f => {
         ctx.beginPath(); ctx.arc(f.x + camX, f.y + camY, f.r, 0, 7); ctx.fillStyle = f.c; ctx.fill();
     });
 
-    // 3. Vẽ toàn bộ người chơi khác đang online
+    // 3. Người chơi
     Object.keys(players).forEach(id => {
         let s = players[id];
         if (!s || !s.isAlive || !s.body || s.body.length === 0) return;
