@@ -11,6 +11,10 @@
         button { background:#2ecc71; color:#fff; font-weight:bold; cursor:pointer; }
         #ui { position:absolute; top:20px; left:20px; color:#fff; font-size:20px; font-weight:bold; z-index:5; display:none; }
         #status { color: #ffa502; font-size: 14px; margin-top: 10px; }
+        
+        /* Giao diện Bảng điểm Top Score */
+        #leaderboard { position:absolute; top:20px; right:20px; color:#fff; background:rgba(0,0,0,0.6); padding:15px; border-radius:8px; min-width:180px; font-size:14px; box-shadow:0 4px 10px rgba(0,0,0,0.3); z-index:5; display:none; }
+        #leaderboard h3 { margin:0 0 8px 0; color:#eccc68; text-align:center; font-size:15px; letter-spacing:1px; }
     </style>
 </head>
 <body>
@@ -32,6 +36,13 @@
 </div>
 
 <div id="ui">Điểm: <span id="sc">0</span></div>
+
+<!-- Giao diện chứa danh sách Top Score -->
+<div id="leaderboard">
+    <h3>BẢNG XẾP HẠNG</h3>
+    <div id="lbl"></div>
+</div>
+
 <canvas id="cv"></canvas>
 
 <script>
@@ -41,7 +52,7 @@ let ws, players = {}, foods = [], myId, isBoost = false, angle = 0, MAP_SIZE = 1
 window.onresize = () => { cv.width = window.innerWidth; cv.height = window.innerHeight; };
 window.onresize();
 
-// 💡 ĐỔI CHỮ https:// THÀNH wss:// VÀ THAY ĐƯỜNG LINK RENDER CỦA BẠN VÀO ĐÂY
+// 💡 LINK SERVER RENDER CỦA BẠN (GIỮ NGUYÊN GIAO THỨC WSS://)
 const SERVER_URL = "wss://slither-backend-2v4i.onrender.com";
 
 function connectToServer() {
@@ -49,13 +60,13 @@ function connectToServer() {
     document.getElementById("status").innerText = "Đang kết nối trực tiếp qua mạng thuần...";
     document.getElementById("joinBtn").disabled = true;
 
-    // Sử dụng bộ engine WebSocket có sẵn 100% trong mọi trình duyệt hiện đại
     ws = new WebSocket(SERVER_URL);
 
     ws.onopen = () => {
         ws.send(JSON.stringify({ type: 'join', name: name }));
         document.getElementById("menu").style.display = "none";
-        document.getElementById("ui").style.display = "block";
+        // Hiện cả ô điểm góc trái và bảng xếp hạng góc phải
+        document.getElementById("ui").style.display = document.getElementById("leaderboard").style.display = "block";
         loop();
     };
 
@@ -69,8 +80,11 @@ function connectToServer() {
             players = data.players;
             foods = data.foods;
             if(myId && players[myId]) document.getElementById("sc").innerText = Math.floor(players[myId].sc);
+            
+            // TỰ ĐỘNG CẬP NHẬT BẢNG XẾP HẠNG TOP SCORE
+            updateLeaderboard();
         } else if (data.type === 'dead') {
-            document.getElementById("ui").style.display = "none";
+            document.getElementById("ui").style.display = document.getElementById("leaderboard").style.display = "none";
             document.getElementById("over").style.display = "flex";
         }
     };
@@ -85,6 +99,25 @@ function connectToServer() {
     };
     window.onmousedown = (e) => { if(e.button === 0) isBoost = true; };
     window.onmouseup = (e) => { if(e.button === 0) isBoost = false; };
+}
+
+// Hàm lọc điểm, sắp xếp lớn đến bé và hiển thị lên UI
+function updateLeaderboard() {
+    let activePlayers = Object.keys(players)
+        .map(id => players[id])
+        .filter(p => p && p.isAlive);
+
+    // Sắp xếp người chơi theo điểm giảm dần
+    activePlayers.sort((a, b) => b.sc - a.sc);
+
+    let lbHTML = "";
+    // Lấy tối đa 5 người chơi có điểm cao nhất
+    activePlayers.slice(0, 5).forEach((p, idx) => {
+        // Nếu là chính mình thì tô chữ màu xanh lá cho nổi bật
+        let style = (p.id === myId) ? "color:#2ecc71;font-weight:bold;" : "";
+        lbHTML += `<div style="${style}">${idx + 1}. ${p.name}: ${Math.floor(p.sc)}</div>`;
+    });
+    document.getElementById("lbl").innerHTML = lbHTML;
 }
 
 function drawEye(ctxX, ctxY, r, a, o, d) {
