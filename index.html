@@ -3,14 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Slither Space Ultra Performance</title>
+    <title>Slither Space Fixed</title>
     <style>
         body { margin:0; overflow:hidden; background:#0b0c10; font-family:Arial; user-select:none; touch-action: none; }
         canvas { display:block; position: absolute; top: 0; left: 0; }
-        
-        /* TỐI ƯU LƯỚI BẰNG CSS: Chạy bằng GPU phần cứng điện thoại, mượt hơn vẽ canvas gấp 10 lần */
         #gridBg { position: absolute; width: 100vw; height: 100vh; background-image: linear-gradient(rgba(69,243,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(69,243,255,0.03) 1px, transparent 1px); background-size: 60px 60px; pointer-events: none; z-index: 1; }
-        
         .box { position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(11,12,16,0.95); display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:10; }
         .card { background:#1f2833; padding:30px; border-radius:16px; text-align:center; border:2px solid #45f3ff; color:#fff; }
         input, button { padding:12px; font-size:16px; border-radius:8px; border:none; margin:8px; outline:none; }
@@ -18,10 +15,7 @@
         button { background:#45f3ff; color:#0b0c10; font-weight:bold; cursor:pointer; }
         #ui { position:absolute; top:15px; left:15px; color:#45f3ff; font-size:18px; font-weight:bold; z-index:5; display:none; }
         #leaderboard { position:absolute; top:15px; right:15px; color:#fff; background:rgba(31,40,51,0.8); padding:10px; border-radius:8px; min-width:130px; font-size:12px; border:1px solid rgba(69,243,255,0.2); z-index:5; display:none; }
-        
-        /* 🚀 NÚT BẤM TĂNG TỐC CHUYÊN DỤNG CHO MOBILE */
-        #boostBtn { position: absolute; bottom: 30px; right: 30px; width: 75px; height: 75px; background: rgba(69, 243, 255, 0.25); border: 2px solid #45f3ff; border-radius: 50%; color: #45f3ff; font-weight: bold; font-size: 14px; display: none; justify-content: center; align-items: center; z-index: 8; -webkit-user-select: none; }
-        #boostBtn:active { background: rgba(69, 243, 255, 0.6); color: #0b0c10; }
+        #boostBtn { position: absolute; bottom: 30px; right: 30px; width: 75px; height: 75px; background: rgba(69, 243, 255, 0.25); border: 2px solid #45f3ff; border-radius: 50%; color: #45f3ff; font-weight: bold; font-size: 14px; display: none; justify-content: center; align-items: center; z-index: 8; }
     </style>
 </head>
 <body>
@@ -30,7 +24,7 @@
 <div id="menu" class="box">
     <div class="card">
         <h1 style="color:#45f3ff; margin:0 0 10px 0;">SLITHER SPEED</h1>
-        <input type="text" id="pName" value="Mobile_" maxlength="10">
+        <input type="text" id="pName" value="Gamer_" maxlength="10">
         <br><button id="joinBtn" onclick="connectToServer()">PHÓNG XUẤT</button>
         <div id="status" style="color:#ffa502; font-size:13px; margin-top:10px;"></div>
     </div>
@@ -52,18 +46,17 @@
 const cv = document.getElementById("cv"), ctx = cv.getContext("2d"), bg = document.getElementById("gridBg");
 let ws, players = {}, foods = [], myId, isBoost = false, angle = 0, MAP_SIZE = 3500;
 
-// Nhận diện xem người chơi có đang dùng điện thoại không
 const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
 
 window.onresize = () => { cv.width = window.innerWidth; cv.height = window.innerHeight; };
 window.onresize();
 
-// 💡 ĐIỀN LINK RENDER CỦA BẠN VÀO ĐÂY (GIỮ NGUYÊN WSS://)
+// 💡 ĐIỀN CHÍNH XÁC ĐƯỜNG LINK HUGGING FACE CỦA BẠN VÀO ĐÂY (CÓ ĐUÔI /ws)
 const SERVER_URL = "wss://james95it-slither-backend.hf.space/ws";
 
 function connectToServer() {
     let name = document.getElementById("pName").value.trim() || "Player";
-    document.getElementById("status").innerText = "Đang kết nối siêu tốc...";
+    document.getElementById("status").innerText = "Đang kết nối vũ trụ...";
     document.getElementById("joinBtn").disabled = true;
 
     ws = new WebSocket(SERVER_URL);
@@ -72,17 +65,22 @@ function connectToServer() {
         ws.send(JSON.stringify({ type: 'join', name: name }));
         document.getElementById("menu").style.display = "none";
         document.getElementById("ui").style.display = document.getElementById("leaderboard").style.display = "block";
-        if (isMobile) document.getElementById("boostBtn").style.display = "flex"; // Hiện nút boost trên điện thoại
+        if (isMobile) document.getElementById("boostBtn").style.display = "flex";
         loop();
     };
 
     ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
         if (data.type === 'init') {
-            myId = data.myId; MAP_SIZE = data.mapSize;
+            myId = data.myId; 
+            MAP_SIZE = data.mapSize;
         } else if (data.type === 'state') {
-            players = data.players; foods = data.foods;
-            if(myId && players[myId]) document.getElementById("sc").innerText = Math.floor(players[myId].sc * 10);
+            players = data.players; 
+            foods = data.foods;
+            // SỬA LỖI BIẾN SỐ: Đổi từ .score thành .sc đồng bộ với Server
+            if(myId && players[myId]) {
+                document.getElementById("sc").innerText = Math.floor(players[myId].sc * 10);
+            }
             updateLeaderboard();
         } else if (data.type === 'dead') {
             document.getElementById("ui").style.display = document.getElementById("leaderboard").style.display = "none";
@@ -93,16 +91,13 @@ function connectToServer() {
 
     ws.onerror = () => { document.getElementById("joinBtn").disabled = false; };
 
-    // --- ĐIỀU KHIỂN CHUỘT MÁY TÍNH ---
     if (!isMobile) {
         window.onmousemove = (e) => { angle = Math.atan2(e.clientY - cv.height / 2, e.clientX - cv.width / 2); };
         window.onmousedown = (e) => { if(e.button === 0) isBoost = true; };
         window.onmouseup = (e) => { if(e.button === 0) isBoost = false; };
     } else {
-        // --- ĐIỀU KHIỂN DI ĐỘNG SIÊU MƯỢT ---
         window.addEventListener("touchmove", (e) => {
             let t = e.touches[0];
-            // Bỏ qua nếu vuốt trúng khu vực nút Boost ở góc phải dưới
             if (t.clientX > window.innerWidth - 120 && t.clientY > window.innerHeight - 120) return;
             angle = Math.atan2(t.clientY - cv.height / 2, t.clientX - cv.width / 2);
         }, { passive: true });
@@ -128,7 +123,11 @@ function loop() {
     ctx.clearRect(0, 0, cv.width, cv.height);
 
     let me = players[myId];
-    if (!me || !me.isAlive) { requestAnimationFrame(loop); return; }
+    // SỬA LỖI KHỞI TẠO NGẦM: Nếu chưa nhận đủ dữ liệu me từ server, bắt vòng lặp chờ chứ không đứng im màn hình
+    if (!me || !me.isAlive) { 
+        requestAnimationFrame(loop); 
+        return; 
+    }
 
     if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'input', a: angle, isBoost: isBoost }));
@@ -137,47 +136,46 @@ function loop() {
     let camX = cv.width / 2 - me.x;
     let camY = cv.height / 2 - me.y;
 
-    // ĐỒNG BỘ LƯỚI CSS THEO CAMERA CHẠY PHẦN CỨNG SIÊU MƯỢT
     bg.style.backgroundPosition = `${camX}px ${camY}px`;
 
-    // Vẽ biên giới mờ ảo ngoài rìa thiên hà
     ctx.strokeStyle = "rgba(255, 71, 87, 0.2)"; ctx.lineWidth = 4;
     ctx.strokeRect(camX, camY, MAP_SIZE, MAP_SIZE);
 
-    // Vẽ thức ăn tối ưu đồ họa (Không bóng đổ)
-    foods.forEach(f => {
-        ctx.beginPath(); ctx.arc(f.x + camX, f.y + camY, f.r, 0, 7); ctx.fillStyle = f.c; ctx.fill();
-    });
+    if (foods && foods.length > 0) {
+        foods.forEach(f => {
+            ctx.beginPath(); ctx.arc(f.x + camX, f.y + camY, f.r, 0, 7); ctx.fillStyle = f.c; ctx.fill();
+        });
+    }
 
-    // Vẽ người chơi
-    Object.keys(players).forEach(id => {
-        let s = players[id];
-        if (!s || !s.isAlive || !s.body || s.body.length === 0) return;
+    if (players && Object.keys(players).length > 0) {
+        Object.keys(players).forEach(id => {
+            let s = players[id];
+            if (!s || !s.isAlive || !s.body || s.body.length === 0) return;
 
-        let screenX = s.x + camX; let screenY = s.y + camY;
-        let spacing = 4;
+            let screenX = s.x + camX; 
+            let screenY = s.y + camY;
+            let spacing = 4;
 
-        // Vẽ thân uốn mượt
-        for (let i = s.body.length - 1; i >= 0; i -= spacing) {
-            if (s.body[i]) {
-                let currentR = s.r - 2;
-                if (s.isBoosting && i > s.body.length * 0.6) currentR -= 2;
-                ctx.beginPath(); ctx.arc(s.body[i].x + camX, s.body[i].y + camY, currentR, 0, 7);
-                ctx.fillStyle = s.isBoosting ? "#ff9f43" : s.c + "b3"; ctx.fill();
+            for (let i = s.body.length - 1; i >= 0; i -= spacing) {
+                if (s.body[i]) {
+                    let currentR = s.r - 2;
+                    if (s.isBoosting && i > s.body.length * 0.6) currentR -= 2;
+                    ctx.beginPath(); ctx.arc(s.body[i].x + camX, s.body[i].y + camY, currentR, 0, 7);
+                    ctx.fillStyle = s.isBoosting ? "#ff9f43" : s.c + "b3"; ctx.fill();
+                }
             }
-        }
 
-        // Vẽ đầu và mắt
-        ctx.beginPath(); ctx.arc(screenX, screenY, s.r, 0, 7); ctx.fillStyle = s.c; ctx.fill();
-        
-        let ex1 = screenX + Math.cos(s.a)*6 + Math.cos(s.a-4)*4, ey1 = screenY + Math.sin(s.a)*6 + Math.sin(s.a-4)*4;
-        ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(ex1,ey1,3,0,7); ctx.fill();
-        let ex2 = screenX + Math.cos(s.a)*6 + Math.cos(s.a+4)*4, ey2 = screenY + Math.sin(s.a)*6 + Math.sin(s.a+4)*4;
-        ctx.beginPath(); ctx.arc(ex2,ey2,3,0,7); ctx.fill();
+            ctx.beginPath(); ctx.arc(screenX, screenY, s.r, 0, 7); ctx.fillStyle = s.c; ctx.fill();
+            
+            let ex1 = screenX + Math.cos(s.a)*6 + Math.cos(s.a-4)*4, ey1 = screenY + Math.sin(s.a)*6 + Math.sin(s.a-4)*4;
+            ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(ex1,ey1,3,0,7); ctx.fill();
+            let ex2 = screenX + Math.cos(s.a)*6 + Math.cos(s.a+4)*4, ey2 = screenY + Math.sin(s.a)*6 + Math.sin(s.a+4)*4;
+            ctx.beginPath(); ctx.arc(ex2,ey2,3,0,7); ctx.fill();
 
-        ctx.fillStyle = "#fff"; ctx.font = "bold 11px Arial"; ctx.textAlign = "center";
-        ctx.fillText(s.name, screenX, screenY - s.r - 6);
-    });
+            ctx.fillStyle = "#fff"; ctx.font = "bold 11px Arial"; ctx.textAlign = "center";
+            ctx.fillText(s.name, screenX, screenY - s.r - 6);
+        });
+    }
 
     requestAnimationFrame(loop);
 }
