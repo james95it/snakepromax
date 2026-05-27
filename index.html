@@ -2,10 +2,241 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Trang web của tôi</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slither Game Complete Upgrade</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #16161a;
+            font-family: Arial, sans-serif;
+            user-select: none;
+        }
+        canvas {
+            display: block;
+        }
+        #scoreBoard {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #fffffe;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #72757e;
+            font-size: 14px;
+            background: rgba(0,0,0,0.6);
+            padding: 8px 16px;
+            border-radius: 20px;
+            pointer-events: none;
+        }
+    </style>
 </head>
 <body>
-    <h1>Xin chào thế giới!</h1>
-    <p>Trang web HTML của tôi đã hoạt động công khai trên GitHub Pages.</p>
+
+<div id="scoreBoard">Điểm: <span id="score">0</span></div>
+<div id="instructions">Di chuột để hướng dẫn • Nhấn giữ chuột trái để TĂNG TỐC</div>
+<canvas id="gameCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+const scoreDisplay = document.getElementById("score");
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
+
+// Cấu hình điều khiển chuột
+let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+let isBoosting = false;
+
+window.addEventListener("mousemove", (e) => {
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+});
+
+// Tính năng 1: Nhấn giữ chuột để tăng tốc
+window.addEventListener("mousedown", (e) => { if (e.button === 0) isBoosting = true; });
+window.addEventListener("mouseup", (e) => { if (e.button === 0) isBoosting = false; });
+// Hỗ trợ cả màn hình cảm ứng điện thoại
+window.addEventListener("touchstart", () => { isBoosting = true; });
+window.addEventListener("touchend", () => { isBoosting = false; });
+
+// Khởi tạo con rắn
+const snake = {
+    x: canvas.width / 2,
+    y: canvas.height / 2,
+    radius: 16,
+    baseSpeed: 3,
+    boostSpeed: 6,
+    currentSpeed: 3,
+    angle: 0,
+    body: [],
+    bodyLength: 30, // Số lượng mắt xích vị trí lưu trữ ban đầu
+    score: 0
+};
+
+// Tạo vị trí ban đầu cho thân rắn
+for (let i = 0; i < 150; i++) {
+    snake.body.push({ x: snake.x, y: snake.y });
+}
+
+// Tính năng 2: Quản lý thức ăn (Foods)
+const foods = [];
+const maxFoods = 40;
+const foodColors = ["#ff4757", "#2ed573", "#1e90ff", "#ffa502", "#9b59b6", "#eccc68"];
+
+function spawnFood() {
+    foods.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        radius: Math.random() * 4 + 4, // Kích thước ngẫu nhiên
+        color: foodColors[Math.floor(Math.random() * foodColors.length)]
+    });
+}
+
+// Khởi tạo danh sách thức ăn ban đầu
+for (let i = 0; i < maxFoods; i++) {
+    spawnFood();
+}
+
+// Vòng lặp chính của Game
+function gameLoop() {
+    // ----------------------------------------------------
+    // 1. XỬ LÝ DI CHUYỂN & TĂNG TỐC
+    // ----------------------------------------------------
+    let dx = mouse.x - snake.x;
+    let dy = mouse.y - snake.y;
+    let distance = Math.sqrt(dx * dx + dy * dy);
+
+    // Thay đổi tốc độ dựa trên việc kích hoạt Nhấn giữ chuột
+    // Điều kiện tăng tốc: Phải có điểm (> 0) mới được tăng tốc giống Slither
+    if (isBoosting && snake.score > 0) {
+        snake.currentSpeed = snake.boostSpeed;
+        // Trừ điểm dần khi tăng tốc (tiêu hao năng lượng)
+        snake.score -= 0.05;
+        if (snake.score < 0) snake.score = 0;
+        snake.bodyLength = 30 + Math.floor(snake.score * 3);
+    } else {
+        snake.currentSpeed = snake.baseSpeed;
+    }
+    scoreDisplay.innerText = Math.floor(snake.score);
+
+    if (distance > 4) {
+        snake.angle = Math.atan2(dy, dx);
+        snake.x += Math.cos(snake.angle) * snake.currentSpeed;
+        snake.y += Math.sin(snake.angle) * snake.currentSpeed;
+    }
+
+    // Cập nhật mảng thân rắn uốn lượn
+    snake.body.unshift({ x: snake.x, y: snake.y });
+    while (snake.body.length > snake.bodyLength) {
+        snake.body.pop();
+    }
+
+    // ----------------------------------------------------
+    // 2. XỬ LÝ VA CHẠM / ĂN THỨC ĂN
+    // ----------------------------------------------------
+    for (let i = foods.length - 1; i >= 0; i--) {
+        let f = foods[i];
+        let fdx = snake.x - f.x;
+        let fdy = snake.y - f.y;
+        let fDist = Math.sqrt(fdx * fdx + fdy * fdy);
+
+        // Nếu đầu rắn chạm trúng hạt thức ăn
+        if (fDist < snake.radius + f.radius) {
+            foods.splice(i, 1); // Xóa hạt thức ăn đó
+            spawnFood();        // Tạo lại hạt mới ở chỗ khác
+            
+            // Tăng điểm và tăng độ dài đốt thân
+            snake.score += 1;
+            snake.bodyLength += 4; // Thêm vị trí lưu trữ để thân dài ra tự nhiên
+        }
+    }
+
+    // Đảm bảo số lượng thức ăn cố định trên sàn game
+    while (foods.length < maxFoods) {
+        spawnFood();
+    }
+
+    // ----------------------------------------------------
+    // 3. VẼ ĐỒ HỌA TRÊN CANVAS
+    // ----------------------------------------------------
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Vẽ toàn bộ thức ăn trước (nằm dưới rắn)
+    foods.forEach(f => {
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
+        ctx.fillStyle = f.color;
+        // Tạo hiệu ứng phát sáng nhẹ cho thức ăn
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = f.color;
+        ctx.fill();
+        ctx.closePath();
+    });
+    ctx.shadowBlur = 0; // Reset hiệu ứng bóng đổ cho rắn
+
+    // Vẽ các đốt thân (Vẽ từ đuôi lên để đầu đè lên thân)
+    // Biến `spacing` tạo khoảng cách hiển thị hợp lý giữa các hình tròn đốt thân
+    let spacing = 4;
+    for (let i = snake.body.length - 1; i >= 0; i -= spacing) {
+        let part = snake.body[i];
+        ctx.beginPath();
+        ctx.arc(part.x, part.y, snake.radius - 2, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(52, 152, 219, 0.7)"; // Thân màu xanh dương trong suốt nhẹ
+        ctx.fill();
+        ctx.closePath();
+    }
+
+    // Vẽ đầu rắn lớn hơn thân một chút
+    ctx.beginPath();
+    ctx.arc(snake.x, snake.y, snake.radius, 0, Math.PI * 2);
+    ctx.fillStyle = "#2980b9"; // Đầu màu xanh dương đậm
+    ctx.fill();
+    ctx.closePath();
+
+    // Tính năng 3: Vẽ ĐÔI MẮT xoay theo góc hướng di chuyển (snake.angle)
+    let eyeDistance = 6;  // Khoảng cách giữa 2 mắt sang 2 bên
+    let eyeOffset = 8;    // Khoảng cách từ tâm đầu hướng ra phía trước mặt
+
+    // Tính vị trí Mắt Trái dựa trên góc lượng giác
+    let leftEyeX = snake.x + Math.cos(snake.angle) * eyeOffset + Math.cos(snake.angle - Math.PI/2) * eyeDistance;
+    let leftEyeY = snake.y + Math.sin(snake.angle) * eyeOffset + Math.sin(snake.angle - Math.PI/2) * eyeDistance;
+
+    // Tính vị trí Mắt Phải dựa trên góc lượng giác
+    let rightEyeX = snake.x + Math.cos(snake.angle) * eyeOffset + Math.cos(snake.angle + Math.PI/2) * eyeDistance;
+    let rightEyeY = snake.y + Math.sin(snake.angle) * eyeOffset + Math.sin(snake.angle + Math.PI/2) * eyeDistance;
+
+    // Tiến hành vẽ tròng mắt trắng
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath(); ctx.arc(leftEyeX, leftEyeY, 4, 0, Math.PI * 2); ctx.fill(); ctx.closePath();
+    ctx.beginPath(); ctx.arc(rightEyeX, rightEyeY, 4, 0, Math.PI * 2); ctx.fill(); ctx.closePath();
+
+    // Vẽ con ngươi đen hơi lệch về hướng nhìn phía trước mặt một chút
+    let pupilOffsetX = Math.cos(snake.angle) * 1.5;
+    let pupilOffsetY = Math.sin(snake.angle) * 1.5;
+
+    ctx.fillStyle = "#000000";
+    ctx.beginPath(); ctx.arc(leftEyeX + pupilOffsetX, leftEyeY + pupilOffsetY, 2, 0, Math.PI * 2); ctx.fill(); ctx.closePath();
+    ctx.beginPath(); ctx.arc(rightEyeX + pupilOffsetX, rightEyeY + pupilOffsetY, 2, 0, Math.PI * 2); ctx.fill(); ctx.closePath();
+
+    requestAnimationFrame(gameLoop);
+}
+
+// Bắt đầu chạy vòng lặp trò chơi
+gameLoop();
+</script>
+
 </body>
 </html>
