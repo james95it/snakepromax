@@ -1,189 +1,116 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Slither Pro Live</title>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <title>Slither Pro</title>
     <style>
-        body { margin:0; overflow:hidden; background:#0b0c10; font-family:Arial; user-select:none; touch-action: none; }
-        canvas { display:block; position: absolute; top: 0; left: 0; }
-        #gridBg { position: absolute; width: 100vw; height: 100vh; background-image: linear-gradient(rgba(69,243,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(69,243,255,0.03) 1px, transparent 1px); background-size: 60px 60px; pointer-events: none; z-index: 1; }
-        .box { position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(11,12,16,0.95); display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:10; }
-        .card { background:#1f2833; padding:30px; border-radius:16px; text-align:center; border:2px solid #45f3ff; color:#fff; }
-        input, button { padding:12px; font-size:16px; border-radius:8px; border:none; margin:8px; outline:none; }
-        input { width:200px; text-align:center; background:#fff; font-weight:bold; }
-        button { background:#45f3ff; color:#0b0c10; font-weight:bold; cursor:pointer; }
-        #ui { position:absolute; top:15px; left:15px; color:#45f3ff; font-size:18px; font-weight:bold; z-index:5; display:none; }
-        #leaderboard { position:absolute; top:15px; right:15px; color:#fff; background:rgba(31,40,51,0.8); padding:10px; border-radius:8px; min-width:130px; font-size:12px; border:1px solid rgba(69,243,255,0.2); z-index:5; display:none; }
-        #boostBtn { position: absolute; bottom: 30px; right: 30px; width: 75px; height: 75px; background: rgba(69, 243, 255, 0.25); border: 2px solid #45f3ff; border-radius: 50%; color: #45f3ff; font-weight: bold; font-size: 14px; display: none; justify-content: center; align-items: center; z-index: 8; }
+        body{margin:0;overflow:hidden;background:#0b0c10;font-family:Arial;user-select:none;touch-action:none;}
+        canvas{display:block;position:absolute;top:0;left:0;}
+        #gridBg{position:absolute;width:100vw;height:100vh;background-image:linear-gradient(rgba(69,243,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(69,243,255,0.03) 1px,transparent 1px);background-size:60px 60px;pointer-events:none;z-index:1;}
+        .box{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(11,12,16,0.95);display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:10;}
+        .card{background:#1f2833;padding:30px;border-radius:16px;text-align:center;border:2px solid #45f3ff;color:#fff;}
+        input,button{padding:12px;font-size:16px;border-radius:8px;border:none;margin:8px;outline:none;}
+        input{width:200px;text-align:center;background:#fff;font-weight:bold;}
+        button{background:#45f3ff;color:#0b0c10;font-weight:bold;cursor:pointer;}
+        #ui{position:absolute;top:15px;left:15px;color:#45f3ff;font-size:18px;font-weight:bold;z-index:5;display:none;}
+        #leaderboard{position:absolute;top:15px;right:15px;color:#fff;background:rgba(31,40,51,0.8);padding:10px;border-radius:8px;min-width:130px;font-size:12px;border:1px solid rgba(69,243,255,0.2);z-index:5;display:none;}
+        #boostBtn{position:absolute;bottom:30px;right:30px;width:75px;height:75px;background:rgba(69,243,255,0.25);border:2px solid #45f3ff;border-radius:50%;color:#45f3ff;font-weight:bold;font-size:14px;display:none;justify-content:center;align-items:center;z-index:8;}
     </style>
 </head>
 <body>
-
 <div id="gridBg"></div>
 <div id="menu" class="box">
     <div class="card">
-        <h1 style="color:#45f3ff; margin:0 0 10px 0;">SLITHER SPEED</h1>
+        <h1 style="color:#45f3ff;margin:0 0 10px 0;">SLITHER SPEED</h1>
         <input type="text" id="pName" value="Gamer_" maxlength="10">
         <br><button id="joinBtn" onclick="connectToServer()">PHÓNG XUẤT</button>
-        <div id="status" style="color:#ffa502; font-size:13px; margin-top:10px;"></div>
+        <div id="status" style="color:#ffa502;font-size:13px;margin-top:10px;"></div>
     </div>
 </div>
-
 <div id="over" class="box" style="display:none;">
     <div class="card" style="border-color:#ff4757;">
-        <h2 style="color:#ff4757; margin:0 0 15px 0;">PHI THUYỀN BỊ NỔ!</h2>
-        <button onclick="location.reload()" style="background:#ff4757; color:#fff;">TÁI SINH</button>
+        <h2 style="color:#ff4757;margin:0 0 15px 0;">PHI THUYỀN BỊ NỔ!</h2>
+        <button onclick="location.reload()" style="background:#ff4757;color:#fff;">TÁI SINH</button>
     </div>
 </div>
-
 <div id="ui">Năng lượng: <span id="sc">0</span></div>
 <div id="leaderboard"><div id="lbl"></div></div>
 <canvas id="cv"></canvas>
 <div id="boostBtn">BOOST</div>
-
 <script>
-const cv = document.getElementById("cv"), ctx = cv.getContext("2d"), bg = document.getElementById("gridBg");
-let ws, players = {}, foods = [], myId, isBoost = false, angle = 0, MAP_SIZE = 3500;
-let lastSendTime = 0; // Biến hãm băng thông gửi tin mạng từ client
-
-const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
-
-window.onresize = () => { cv.width = window.innerWidth; cv.height = window.innerHeight; };
-window.onresize();
+const cv=document.getElementById("cv"),ctx=cv.getContext("2d"),bg=document.getElementById("gridBg");
+let ws,serverPlayers={},foods=[],myId,isBoost=false,angle=0,MAP_SIZE=3500,lastSendTime=0,renderPlayers={};
+const isMobile=/Android|iPhone|iPad/i.test(navigator.userAgent);
+window.onresize=()=>{cv.width=window.innerWidth;cv.height=window.innerHeight;};window.onresize();
 
 // 💡 ĐIỀN ĐƯỜNG LINK HUGGING FACE /ws CHUẨN CỦA BẠN VÀO ĐÂY
 const SERVER_URL = "wss://james95it-slither-backend.hf.space/ws";
 
-function connectToServer() {
-    let name = document.getElementById("pName").value.trim() || "Player";
-    document.getElementById("status").innerText = "Đang đồng bộ mạng vũ trụ...";
-    document.getElementById("joinBtn").disabled = true;
-
-    ws = new WebSocket(SERVER_URL);
-
-    ws.onopen = () => {
-        ws.send(JSON.stringify({ type: 'join', name: name }));
-        document.getElementById("menu").style.display = "none";
-        document.getElementById("ui").style.display = document.getElementById("leaderboard").style.display = "block";
-        if (isMobile) document.getElementById("boostBtn").style.display = "flex";
-        loop();
+function connectToServer(){
+    let name=document.getElementById("pName").value.trim()||"Player";
+    document.getElementById("status").innerText="Đang kết nối...";document.getElementById("joinBtn").disabled=true;
+    ws=new WebSocket(SERVER_URL);
+    ws.onopen=()=>{
+        ws.send(JSON.stringify({type:'join',name:name}));document.getElementById("menu").style.display="none";
+        document.getElementById("ui").style.display=document.getElementById("leaderboard").style.display="block";
+        if(isMobile)document.getElementById("boostBtn").style.display="flex";loop();
     };
-
-    ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data.type === 'init') {
-            myId = data.myId; 
-            MAP_SIZE = data.mapSize;
-        } else if (data.type === 'state') {
-            players = data.players; 
-            foods = data.foods;
-            if(myId && players[myId]) {
-                document.getElementById("sc").innerText = Math.floor(players[myId].sc * 10);
-            }
-            updateLeaderboard();
-        } else if (data.type === 'dead') {
-            document.getElementById("ui").style.display = document.getElementById("leaderboard").style.display = "none";
-            document.getElementById("boostBtn").style.display = "none";
-            document.getElementById("over").style.display = "flex";
+    ws.onmessage=(e)=>{
+        const d=JSON.parse(e.data);
+        if(d.type==='init'){myId=d.myId;MAP_SIZE=d.mapSize;}
+        else if(d.type==='state'){
+            serverPlayers=d.players;foods=d.foods;
+            if(myId&&serverPlayers[myId])document.getElementById("sc").innerText=Math.floor(serverPlayers[myId].sc*10);updateLb();
+        }else if(d.type==='dead'){document.getElementById("ui").style.display=document.getElementById("leaderboard").style.display="none";document.getElementById("boostBtn").style.display="none";document.getElementById("over").style.display="flex";}
+    };
+    ws.onerror=()=>{document.getElementById("joinBtn").disabled=false;};
+    if(!isMobile){
+        window.onmousemove=(e)=>{angle=Math.atan2(e.clientY-cv.height/2,e.clientX-cv.width/2);};
+        window.onmousedown=(e)=>{if(e.button===0)isBoost=true;};window.onmouseup=(e)=>{if(e.button===0)isBoost=false;};
+    }else{
+        window.addEventListener("touchmove",(e)=>{let t=e.touches[0];if(!t||(t.clientX>window.innerWidth-120&&t.clientY>window.innerHeight-120))return;angle=Math.atan2(t.clientY-cv.height/2,t.clientX-cv.width/2);},{passive:true});
+        const b=document.getElementById("boostBtn");b.addEventListener("touchstart",(e)=>{e.preventDefault();isBoost=true;});b.addEventListener("touchend",(e)=>{e.preventDefault();isBoost=false;});
+    }
+}
+function updateLb(){
+    let act=Object.keys(serverPlayers).map(id=>serverPlayers[id]).filter(p=>p&&p.isAlive);act.sort((a,b)=>b.sc-a.sc);
+    let html="<h4 style='margin:0 0 5px 0;color:#45f3ff;text-align:center;'>TOP RANK</h4>";
+    act.slice(0,4).forEach((p,idx)=>{let style=(p.id===myId)?"color:#45f3ff;font-weight:bold;":"";html+=`<div style="${style}">${idx+1}. ${p.name}: ${Math.floor(p.sc*10)}</div>`;});
+    document.getElementById("lbl").innerHTML=html;
+}
+const lerp=(s,e,a)=>(1-a)*s+a*e;
+function drawEye(cx,cy,r,a,o,d){
+    let ex=cx+Math.cos(a)*o+Math.cos(a+d)*d,ey=cy+Math.sin(a)*o+Math.sin(a+d)*d;
+    ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(ex,ey,3,0,7);ctx.fill();
+}
+function loop(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    let now=Date.now();if(ws&&ws.readyState===WebSocket.OPEN&&(now-lastSendTime>40)){ws.send(JSON.stringify({type:'input',a:angle,isBoost:isBoost}));lastSendTime=now;}
+    Object.keys(serverPlayers).forEach(id=>{
+        let s=serverPlayers[id];if(!s||!s.isAlive){delete renderPlayers[id];return;}
+        if(!renderPlayers[id])renderPlayers[id]={x:s.x,y:s.y,a:s.a,r:s.r,c:s.c,name:s.name,isBoosting:s.isBoosting,body:JSON.parse(JSON.stringify(s.body))};
+        let rP=renderPlayers[id];rP.x=lerp(rP.x,s.x,0.28);rP.y=lerp(rP.y,s.y,0.28);rP.a=lerp(rP.a,s.a,0.3);rP.isBoosting=s.isBoosting;rP.r=s.r;
+        if(s.body&&s.body.length>0){
+            if(rP.body.length!==s.body.length)rP.body=JSON.parse(JSON.stringify(s.body));
+            for(let i=0;i<s.body.length;i++)if(rP.body[i]&&s.body[i]){rP.body[i].x=lerp(rP.body[i].x,s.body[i].x,0.28);rP.body[i].y=lerp(rP.body[i].y,s.body[i].y,0.28);}
         }
-    };
-
-    ws.onerror = () => { document.getElementById("joinBtn").disabled = false; };
-
-    if (!isMobile) {
-        window.onmousemove = (e) => { angle = Math.atan2(e.clientY - cv.height / 2, e.clientX - cv.width / 2); };
-        window.onmousedown = (e) => { if(e.button === 0) isBoost = true; };
-        window.onmouseup = (e) => { if(e.button === 0) isBoost = false; };
-    } else {
-        window.addEventListener("touchmove", (e) => {
-            let t = e.touches[0];
-            if (!t || (t.clientX > window.innerWidth - 120 && t.clientY > window.innerHeight - 120)) return;
-            angle = Math.atan2(t.clientY - cv.height / 2, t.clientX - cv.width / 2);
-        }, { passive: true });
-
-        const bBtn = document.getElementById("boostBtn");
-        bBtn.addEventListener("touchstart", (e) => { e.preventDefault(); isBoost = true; });
-        bBtn.addEventListener("touchend", (e) => { e.preventDefault(); isBoost = false; });
-    }
-}
-
-function updateLeaderboard() {
-    let active = Object.keys(players).map(id => players[id]).filter(p => p && p.isAlive);
-    active.sort((a, b) => b.sc - a.sc);
-    let lbHTML = "<h4 style='margin:0 0 5px 0;color:#45f3ff;text-align:center;'>TOP RANK</h4>";
-    active.slice(0, 4).forEach((p, idx) => {
-        let style = (p.id === myId) ? "color:#45f3ff;font-weight:bold;" : "";
-        lbHTML += `<div style="${style}">${idx + 1}. ${p.name}: ${Math.floor(p.sc * 10)}</div>`;
     });
-    document.getElementById("lbl").innerHTML = lbHTML;
-}
-
-function loop() {
-    ctx.clearRect(0, 0, cv.width, cv.height);
-
-    let me = players[myId];
-    if (!me || !me.isAlive) { 
-        requestAnimationFrame(loop); 
-        return; 
-    }
-
-    // 🚀 TỐI ƯU GỬI TIN: Chỉ gửi tọa độ chuột lên server tối đa 1 lần mỗi 22ms (khoảng 45Hz) để lọt qua Proxy
-    let now = Date.now();
-    if (ws && ws.readyState === WebSocket.OPEN && (now - lastSendTime > 22)) {
-        ws.send(JSON.stringify({ type: 'input', a: angle, isBoost: isBoost }));
-        lastSendTime = now;
-    }
-
-    let camX = cv.width / 2 - me.x;
-    let camY = cv.height / 2 - me.y;
-
-    bg.style.backgroundPosition = `${camX}px ${camY}px`;
-
-    ctx.strokeStyle = "rgba(255, 71, 87, 0.2)"; ctx.lineWidth = 4;
-    ctx.strokeRect(camX, camY, MAP_SIZE, MAP_SIZE);
-
-    if (foods && foods.length > 0) {
-        foods.forEach(f => {
-            ctx.beginPath(); ctx.arc(f.x + camX, f.y + camY, f.r, 0, 7); ctx.fillStyle = f.c; ctx.fill();
-        });
-    }
-
-    if (players && Object.keys(players).length > 0) {
-        Object.keys(players).forEach(id => {
-            let s = players[id];
-            // Khắc phục chống lỗi rỗng mảng: Tự động dùng tọa độ x,y gốc nếu mảng body chưa kịp đồng bộ gói tin đầu
-            if (!s || !s.isAlive) return;
-            
-            let screenX = s.x + camX; 
-            let screenY = s.y + camY;
-            let spacing = 4;
-
-            // Nếu mảng thân tồn tại, tiến hành vẽ uốn khúc
-            if (s.body && s.body.length > 0) {
-                for (let i = s.body.length - 1; i >= 0; i -= spacing) {
-                    if (s.body[i]) {
-                        let currentR = s.r - 2;
-                        if (s.isBoosting && i > s.body.length * 0.6) currentR -= 2;
-                        ctx.beginPath(); ctx.arc(s.body[i].x + camX, s.body[i].y + camY, currentR, 0, 7);
-                        ctx.fillStyle = s.isBoosting ? "#ff9f43" : s.c + "b3"; ctx.fill();
-                    }
-                }
+    let me=renderPlayers[myId];if(!me){requestAnimationFrame(loop);return;}
+    let camX=cv.width/2-me.x,camY=cv.height/2-me.y;bg.style.backgroundPosition=`${camX}px ${camY}px`;
+    ctx.strokeStyle="rgba(255,71,87,0.2)";ctx.lineWidth=4;ctx.strokeRect(camX,camY,MAP_SIZE,MAP_SIZE);
+    foods.forEach(f=>{ctx.beginPath();ctx.arc(f.x+camX,f.y+camY,f.r,0,7);ctx.fillStyle=f.c;ctx.fill();});
+    Object.keys(renderPlayers).forEach(id=>{
+        let s=renderPlayers[id],sx=s.x+camX,sy=s.y+camY;
+        if(s.body&&s.body.length>0){
+            for(let i=s.body.length-1;i>=0;i-=4)if(s.body[i]){
+                let cr=s.r-2;if(s.isBoosting&&i>s.body.length*0.6)cr-=2;
+                ctx.beginPath();ctx.arc(s.body[i].x+camX,s.body[i].y+camY,cr,0,7);ctx.fillStyle=s.isBoosting?"#ff9f43":s.c+"b3";ctx.fill();
             }
-
-            // Vẽ đầu và mắt lập thể
-            ctx.beginPath(); ctx.arc(screenX, screenY, s.r, 0, 7); ctx.fillStyle = s.c; ctx.fill();
-            
-            let ex1 = screenX + Math.cos(s.a)*6 + Math.cos(s.a-4)*4, ey1 = screenY + Math.sin(s.a)*6 + Math.sin(s.a-4)*4;
-            ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(ex1,ey1,3,0,7); ctx.fill();
-            let ex2 = screenX + Math.cos(s.a)*6 + Math.cos(s.a+4)*4, ey2 = screenY + Math.sin(s.a)*6 + Math.sin(s.a+4)*4;
-            ctx.beginPath(); ctx.arc(ex2,ey2,3,0,7); ctx.fill();
-
-            ctx.fillStyle = "#fff"; ctx.font = "bold 11px Arial"; ctx.textAlign = "center";
-            ctx.fillText(s.name, screenX, screenY - s.r - 6);
-        });
-    }
-
+        }
+        ctx.beginPath();ctx.arc(sx,sy,s.r,0,7);ctx.fillStyle=s.c;ctx.fill();
+        drawEye(sx,sy,s.r,s.a,6,-4);drawEye(sx,sy,s.r,s.a,6,4);
+        ctx.fillStyle="#fff";ctx.font="bold 11px Arial";ctx.textAlign="center";ctx.fillText(s.name,sx,sy-s.r-6);
+    });
     requestAnimationFrame(loop);
 }
 </script>
