@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8"><title>Slither Multiplayer Real-time</title>
+    <meta charset="UTF-8"><title>Slither Multiplayer Fixed</title>
     <style>
         body { margin:0; overflow:hidden; background:#16161a; font-family:Arial; user-select:none; }
         canvas { display:block; }
@@ -10,9 +10,9 @@
         input, button { padding:12px; font-size:16px; border-radius:6px; border:none; margin:8px; }
         button { background:#2ecc71; color:#fff; font-weight:bold; cursor:pointer; }
         #ui { position:absolute; top:20px; left:20px; color:#fff; font-size:20px; font-weight:bold; z-index:5; display:none; }
+        #status { color: #ffa502; font-size: 14px; margin-top: 10px; }
     </style>
-    <!-- Nhúng thư viện kết nối mạng Socket.io -->
-    <script src="https://socket.io"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 </head>
 <body>
 
@@ -20,7 +20,8 @@
     <div class="card">
         <h2>SLITHER MULTIPLAYER</h2>
         <input type="text" id="pName" value="Player_" maxlength="10">
-        <br><button onclick="connectToServer()">VÀO CHƠI</button>
+        <br><button id="joinBtn" onclick="connectToServer()">VÀO CHƠI</button>
+        <div id="status"></div>
     </div>
 </div>
 
@@ -29,28 +30,47 @@
 
 <script>
 const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
-let socket, players = {}, foods = [], myId, isBoost = false, angle = 0;
+let socket, players = {}, foods = [], myId, isBoost = false, angle = 0, loopStarted = false;
 
 window.onresize = () => { cv.width = window.innerWidth; cv.height = window.innerHeight; };
 window.onresize();
 
-// THAY ĐƯỜNG LINK SERVER CỦA BẠN VÀO ĐÂY
+// THAY ĐƯỜNG LINK SERVER CỦA BẠN VÀO ĐÂY (Giữ nguyên đuôi .onrender.com)
 const SERVER_URL = "https://slither-backend-2v4i.onrender.com";
 
 function connectToServer() {
-    let name = document.getElementById("pName").value.trim();
-    document.getElementById("menu").style.display = "none";
-    document.getElementById("ui").style.display = "block";
+    let name = document.getElementById("pName").value.trim() || "Player";
+    let statusDiv = document.getElementById("status");
+    let joinBtn = document.getElementById("joinBtn");
+    
+    statusDiv.innerText = "Đang đánh thức máy chủ Render (Vui lòng đợi vài giây)...";
+    joinBtn.disabled = true;
 
-    // Khởi tạo kết nối thời gian thực tới Server Render
-    socket = io(SERVER_URL);
+    // Khởi tạo kết nối mạng bảo mật
+    socket = io(SERVER_URL, { timeout: 60000 });
 
     socket.on('connect', () => {
         myId = socket.id;
+        statusDiv.innerText = "Kết nối thành công! Đang vào game...";
+        
+        // Ẩn menu khi đã chắc chắn kết nối tới Server
+        document.getElementById("menu").style.display = "none";
+        document.getElementById("ui").style.display = "block";
+        
         socket.emit('join-game', { name: name });
+        
+        // Chỉ chạy vòng lặp Game vẽ đồ họa sau khi kết nối thành công
+        if (!loopStarted) {
+            loopStarted = true;
+            loop();
+        }
     });
 
-    // Lắng nghe dữ liệu đồng bộ liên tục từ Server gửi về
+    socket.on('connect_error', () => {
+        statusDiv.innerText = "Lỗi kết nối! Server đang khởi động, hãy bấm thử lại sau 20 giây.";
+        joinBtn.disabled = false;
+    });
+
     socket.on('init-foods', (serverFoods) => foods = serverFoods);
     socket.on('update-foods', (serverFoods) => foods = serverFoods);
     socket.on('game-state', (serverPlayers) => {
@@ -60,17 +80,13 @@ function connectToServer() {
         }
     });
 
-    // Theo dõi hướng chuột điều khiển gửi lên Server
     window.onmousemove = (e) => {
-        if (!players[myId]) return;
-        let dx = e.clientX - cv.width/2; // Lấy tâm màn hình làm mốc hướng
+        let dx = e.clientX - cv.width/2;
         let dy = e.clientY - cv.height/2;
         angle = Math.atan2(dy, dx);
     };
     window.onmousedown = (e) => { if(e.button === 0) isBoost = true; };
     window.onmouseup = (e) => { if(e.button === 0) isBoost = false; };
-
-    loop();
 }
 
 function drawEye(x, y, r, a, o, d) {
@@ -82,32 +98,37 @@ function drawEye(x, y, r, a, o, d) {
 function loop() {
     ctx.clearRect(0, 0, cv.width, cv.height);
 
-    // Gửi liên tục lệnh điều khiển lên Server xử lý vị trí
     if (socket && socket.connected && players[myId]) {
         socket.emit('update-input', { a: angle, isBoost: isBoost });
     }
 
-    // Vẽ thức ăn dùng chung toàn mạng
-    foods.forEach(f => {
-        ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, 7); ctx.fillStyle = f.c; ctx.fill();
-    });
+    // Khắc phục chống crash: Chỉ vẽ khi danh sách mồi tồn tại
+    if (foods && foods.length > 0) {
+        foods.forEach(f => {
+            ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, 7); ctx.fillStyle = f.c; ctx.fill();
+        });
+    }
 
-    // Vẽ toàn bộ các người chơi thực tế đang online trong phòng
-    Object.keys(players).forEach(id => {
-        let s = players[id];
-        
-        // Vẽ thân uốn lượn
-        for (let i = s.body.length - 1; i >= 0; i -= 4) {
-            ctx.beginPath(); ctx.arc(s.body[i].x, s.body[i].y, s.r - 2, 0, 7); ctx.fillStyle = s.c + "b3"; ctx.fill();
-        }
-        // Vẽ đầu và mắt
-        ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 7); ctx.fillStyle = s.c; ctx.fill();
-        drawEye(s.x, s.y, s.r, s.a, 6, -4); drawEye(s.x, s.y, s.r, s.a, 6, 4);
-        
-        // Hiện tên người chơi trực tuyến công khai
-        ctx.fillStyle = "#fff"; ctx.font = "bold 11px Arial"; ctx.textAlign = "center";
-        ctx.fillText(s.n || s.name, s.x, s.y - s.r - 6);
-    });
+    // Khắc phục chống crash: Kiểm tra tính tồn tại của người chơi trực tuyến trước khi lặp vẽ
+    if (players && Object.keys(players).length > 0) {
+        Object.keys(players).forEach(id => {
+            let s = players[id];
+            if (!s || !s.body || s.body.length === 0) return; // Bỏ qua nếu dữ liệu đốt thân trống
+            
+            // Vẽ thân uốn lượn
+            for (let i = s.body.length - 1; i >= 0; i -= 4) {
+                if(s.body[i]) {
+                    ctx.beginPath(); ctx.arc(s.body[i].x, s.body[i].y, s.r - 2, 0, 7); ctx.fillStyle = s.c + "b3"; ctx.fill();
+                }
+            }
+            // Vẽ đầu và mắt
+            ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 7); ctx.fillStyle = s.c; ctx.fill();
+            drawEye(s.x, s.y, s.r, s.a, 6, -4); drawEye(s.x, s.y, s.r, s.a, 6, 4);
+            
+            ctx.fillStyle = "#fff"; ctx.font = "bold 11px Arial"; ctx.textAlign = "center";
+            ctx.fillText(s.n || s.name, s.x, s.y - s.r - 6);
+        });
+    }
 
     requestAnimationFrame(loop);
 }
