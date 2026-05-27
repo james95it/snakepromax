@@ -1,111 +1,133 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8"><title>Slither Mini</title>
+    <meta charset="UTF-8"><title>Slither Glow Remastered</title>
     <style>
-        body{margin:0;overflow:hidden;background:#111;font-family:Arial;}
-        #menu,#ui,#over{position:absolute;color:#fff;text-align:center;width:100%;z-index:5;}
-        #menu,#over{height:100%;background:rgba(0,0,0,0.9);display:flex;flex-direction:column;justify-content:center;align-items:center;}
-        input,button{padding:10px;font-size:16px;margin:5px;border-radius:5px;border:none;}
-        button{background:#2ecc71;color:#fff;font-weight:bold;cursor:pointer;}
-        #ui{display:none;text-align:left;padding:15px;pointer-events:none;}
+        body { margin:0; overflow:hidden; background:#16161a; font-family:'Segoe UI',Arial,sans-serif; user-select:none; }
+        canvas { display:block; }
+        .box { position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(22,22,26,0.95); display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:10; }
+        .card { background:#242529; padding:30px; border-radius:12px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.5); border:2px solid #2ecc71; }
+        input, button { padding:12px; font-size:16px; border-radius:6px; border:none; margin:8px; outline:none; }
+        input { width:200px; text-align:center; background:#fff; }
+        button { background:#2ecc71; color:#fff; font-weight:bold; cursor:pointer; transition:0.2s; }
+        button:hover { transform:scale(1.05); background:#27ae60; }
+        #ui { position:absolute; top:20px; left:20px; color:#fff; pointer-events:none; font-size:20px; font-weight:bold; z-index:5; display:none; }
+        #lb { position:absolute; top:20px; right:20px; color:#fff; background:rgba(0,0,0,0.6); padding:15px; border-radius:8px; min-width:180px; font-size:14px; box-shadow:0 4px 10px rgba(0,0,0,0.3); z-index:5; display:none; }
+        #lb h3 { margin:0 0 8px 0; color:#eccc68; text-align:center; font-size:15px; }
     </style>
 </head>
 <body>
 
-<div id="menu">
-    <h2>SLITHER MINI</h2>
-    <input type="text" id="pName" value="Player1" maxlength="10">
-    <button onclick="start(document.getElementById('pName').value)">CHƠI</button>
+<div id="menu" class="box">
+    <div class="card">
+        <h1 style="color:#2ecc71; margin:0 0 20px 0; letter-spacing:2px;">SLITHER GLOW</h1>
+        <input type="text" id="pName" value="Player1" maxlength="12">
+        <br><button onclick="start()">VÀO CHIẾN</button>
+    </div>
 </div>
 
-<div id="over" style="display:none;">
-    <h2 style="color:#ff4757;">GAME OVER</h2>
-    <button onclick="location.reload()">CHƠI LẠI</button>
+<div id="over" class="box" style="display:none;">
+    <div class="card" style="border-color:#ff4757;">
+        <h1 style="color:#ff4757; margin:0 0 10px 0;">BẠN ĐÃ CHẾT!</h1>
+        <p style="color:#a0a0a0; margin:0 0 15px 0;">Điểm số của bạn: <span id="fSc" style="color:#eccc68; font-weight:bold;">0</span></p>
+        <button onclick="location.reload()" style="background:#ff4757;">CHƠI LẠI</button>
+    </div>
 </div>
 
-<div id="ui">
-    <b>Điểm: <span id="sc">0</span></b>
-    <div id="lb" style="margin-top:10px;background:rgba(0,0,0,0.5);padding:10px;border-radius:5px;"></div>
-</div>
-
+<div id="ui">Điểm: <span id="sc">0</span></div>
+<div id="lb"><h3>BẢNG XẾP HẠNG</h3><div id="lbl"></div></div>
 <canvas id="cv"></canvas>
 
 <script>
 const cv=document.getElementById("cv"), ctx=cv.getContext("2d");
 let snakes=[], foods=[], isBoost=false, pSnake, active=false;
-const colors=["#ff4757","#2ed573","#1e90ff","#ffa502","#9b59b6"];
+const colors=["#ff4757","#2ed573","#1e90ff","#ffa502","#9b59b6","#ff6b81"];
+const bNames=["Lão Hạc AI","Sát Thủ Đầm Lầy","Cà Khía [BOT]","Slither_Pro","Bò Sát Đêm"];
 
-window.onresize=()=>{cv.width=window.innerWidth; cv.height=window.innerHeight;};
-window.onmousemove=(e)=>{ if(pSnake){pSnake.tx=e.clientX; pSnake.ty=e.clientY;} };
-window.onmousedown=(e)=>{if(e.button===0) isBoost=true;};
-window.onmouseup=(e)=>{if(e.button===0) isBoost=false;};
+window.onresize=()=>{ cv.width=window.innerWidth; cv.height=window.innerHeight; };
+window.onmousemove=(e)=>{ if(pSnake){ pSnake.tx=e.clientX; pSnake.ty=e.clientY; }};
+window.onmousedown=(e)=>{ if(e.button===0) isBoost=true; };
+window.onmouseup=(e)=>{ if(e.button===0) isBoost=false; };
 
-function start(name){
-    window.onresize(); document.getElementById("menu").style.display="none";
-    document.getElementById("ui").style.display="block"; active=true;
-    pSnake = spawn(cv.width/2, cv.height/2, "#2980b9", name||"Player", false);
-    for(let i=0;i<5;i++) spawn(Math.random()*cv.width, Math.random()*cv.height, colors[i], "Bot_"+i, true);
-    for(let i=0;i<60;i++) fSpawn();
+function start(){
+    window.onresize();
+    document.getElementById("menu").style.display="none";
+    document.getElementById("ui").style.display=document.getElementById("lb").style.display="block";
+    active=true;
+    let name = document.getElementById("pName").value.trim() || "Player";
+    pSnake = spawn(cv.width/2, cv.height/2, "#2980b9", name, false);
+    for(let i=0; i<5; i++) spawn(Math.random()*cv.width, Math.random()*cv.height, colors[i], bNames[i], true);
+    for(let i=0; i<60; i++) fSpawn();
     loop();
 }
 
 function spawn(x,y,c,n,b){
-    let s={id:Math.random(),x:x,y:y,r:13,n:n,c:c,isB:b,sp:2,a:0,body:[],len:20,sc:0,tx:x,ty:y,timer:0};
-    for(let i=0;i<100;i++) s.body.push({x:x,y:y});
+    let s={id:Math.random(),x:x,y:y,r:14,n:n,c:c,isB:b,sp:2.5,a:0,body:[],len:25,sc:0,tx:x,ty:y,timer:0};
+    for(let i=0;i<120;i++) s.body.push({x:x,y:y});
     snakes.push(s); return s;
 }
 
 function fSpawn(x,y,r,c){
-    foods.push({x:x||Math.random()*cv.width, y:y||Math.random()*cv.height, r:r||3, c:c||colors[Math.floor(Math.random()*5)]});
+    foods.push({x:x||Math.random()*cv.width, y:y||Math.random()*cv.height, r:r||Math.random()*3+3, c:c||colors[Math.floor(Math.random()*colors.length)]});
+}
+
+function drawEye(x, y, r, a, o, d) {
+    let ex = x + Math.cos(a)*o + Math.cos(a+d)*d, ey = y + Math.sin(a)*o + Math.sin(a+d)*d;
+    ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(ex,ey,3.5,0,7); ctx.fill();
+    ctx.fillStyle="#000"; ctx.beginPath(); ctx.arc(ex+Math.cos(a),ey+Math.sin(a),1.5,0,7); ctx.fill();
 }
 
 function loop(){
     if(!active) return;
     ctx.clearRect(0,0,cv.width,cv.height);
 
-    // Vẽ thức ăn
-    foods.forEach(f=>{ ctx.beginPath();ctx.arc(f.x,f.y,f.r,0,7);ctx.fillStyle=f.c;ctx.fill(); });
+    // Vẽ hạt thức ăn có hiệu ứng phát sáng nhẹ
+    foods.forEach(f=>{
+        ctx.beginPath(); ctx.arc(f.x,f.y,f.r,0,7); ctx.fillStyle=f.c;
+        ctx.shadowBlur=f.r>5?12:4; ctx.shadowColor=f.c; ctx.fill();
+    });
+    ctx.shadowBlur=0; // Reset phát sáng để không làm chậm game
 
     snakes.forEach(s=>{
-        // Xử lý AI của Bot
         if(s.isB && (--s.timer<=0 || s.x<10 || s.x>cv.width-10 || s.y<10 || s.y>cv.height-10)){
-            s.timer=Math.random()*100+50;
+            s.timer=Math.random()*100+60;
             let f=foods[Math.floor(Math.random()*foods.length)];
-            if(f){s.tx=f.x; s.ty=f.y;}
+            if(f){ s.tx=f.x; s.ty=f.y; }
         }
 
-        // Di chuyển & Tăng tốc
-        let dx=s.tx-s.x, dy=s.ty-s.y, dist=Math.sqrt(dx*dx+dy*dy);
-        let b = s.isB ? (Math.random()<0.05 && s.sc>5) : isBoost;
-        if(b && s.sc>0){ s.sp=4.5; s.sc-=0.05; s.len=20+s.sc*3; } else { s.sp=2.2; }
+        let b = s.isB ? (Math.random()<0.06 && s.sc>6) : isBoost;
+        if(b && s.sc>0){ s.sp=4.8; s.sc-=0.04; s.len=25+s.sc*3.5; } else { s.sp=2.5; }
         
         if(!s.isB) document.getElementById("sc").innerText=Math.floor(s.sc);
 
-        if(dist>5){
-            s.a=Math.atan2(dy,dx); s.x+=Math.cos(s.a)*s.sp; s.y+=Math.sin(s.a)*s.sp;
-        }
+        let dx=s.tx-s.x, dy=s.ty-s.y, dist=Math.sqrt(dx*dx+dy*dy);
+        if(dist>5){ s.a=Math.atan2(dy,dx); s.x+=Math.cos(s.a)*s.sp; s.y+=Math.sin(s.a)*s.sp; }
+        
         s.body.unshift({x:s.x, y:s.y});
         if(s.body.length>s.len) s.body.pop();
+
+        // Vẽ thân uốn mượt
+        for(let i=s.body.length-1; i>=0; i-=4){
+            ctx.beginPath(); ctx.arc(s.body[i].x,s.body[i].y,s.r-2,0,7); ctx.fillStyle=s.c+"b3"; ctx.fill();
+        }
+        // Vẽ đầu và mắt lập thể
+        ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,7); ctx.fillStyle=s.c; ctx.fill();
+        drawEye(s.x, s.y, s.r, s.a, 6, -4); drawEye(s.x, s.y, s.r, s.a, 6, 4);
+        
+        // Vẽ tên trên đầu
+        ctx.fillStyle="#fff"; ctx.font="bold 11px Arial"; ctx.textAlign="center"; ctx.fillText(s.n,s.x,s.y-s.r-6);
 
         // Kiểm tra ăn mồi
         foods.forEach((f,fi)=>{
             if(Math.sqrt((s.x-f.x)**2+(s.y-f.y)**2) < s.r+f.r){
-                foods.splice(fi,1); s.sc+=(f.r>4)?2:1; s.len+=(f.r>4)?6:3; fSpawn();
+                foods.splice(fi,1); s.sc+=(f.r>5)?2.5:1; s.len+=(f.r>5)?8:4; fSpawn();
             }
         });
-
-        // Vẽ rắn (Thân, đầu, mắt)
-        for(let i=s.body.length-1; i>=0; i-=4){
-            ctx.beginPath();ctx.arc(s.body[i].x,s.body[i].y,s.r-2,0,7);ctx.fillStyle=s.c+"b";ctx.fill();
-        }
-        ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,7);ctx.fillStyle=s.c;ctx.fill();
-        ctx.fillStyle="#fff";ctx.font="10px Arial";ctx.fillText(s.n,s.x,s.y-s.r-4);
-        let lx=s.x+Math.cos(s.a)*5+Math.cos(s.a-1.5)*4, ly=s.y+Math.sin(s.a)*5+Math.sin(s.a-1.5)*4;
-        ctx.beginPath();ctx.arc(lx,ly,2,0,7);ctx.fill();
     });
 
-    // Xử lý đâm đầu vào thân nhau -> Chết
+    while(foods.length<60) fSpawn();
+
+    // Xử lý va chạm đâm đầu chết
     let dead=[];
     snakes.forEach(s1=>{
         snakes.forEach(s2=>{
@@ -119,18 +141,24 @@ function loop(){
     });
 
     dead.forEach(s=>{
-        for(let i=0;i<s.body.length;i+=6) fSpawn(s.body[i].x, s.body[i].y, 6, s.c); // Biến thành mồi lớn
+        for(let i=0; i<s.body.length; i+=6) fSpawn(s.body[i].x, s.body[i].y, 6.5, s.c); // Thức ăn to lấp lánh rơi ra
         if(s===pSnake){
-            active=false; document.getElementById("ui").style.display="none"; document.getElementById("over").style.display="flex";
+            active=false; document.getElementById("fSc").innerText=Math.floor(pSnake.score||pSnake.sc);
+            document.getElementById("ui").style.display=document.getElementById("lb").style.display="none";
+            document.getElementById("over").style.display="flex";
         } else {
-            snakes=snakes.filter(b=>b.id!==s.id); spawn(Math.random()*cv.width, Math.random()*cv.height, colors[Math.floor(Math.random()*5)], "Bot_"+Math.floor(Math.random()*9), true);
+            snakes=snakes.filter(b=>b.id!==s.id);
+            spawn(Math.random()*cv.width, Math.random()*cv.height, colors[Math.floor(Math.random()*6)], bNames[Math.floor(Math.random()*5)], true);
         }
     });
 
-    // Bảng xếp hạng
-    let lbHTML="", sorted=[...snakes].sort((a,b)=>b.sc-a.sc);
-    sorted.slice(0,4).forEach((s,idx)=> lbHTML+=`<div>${idx+1}. ${s.n}: ${Math.floor(s.sc)}</div>`);
-    document.getElementById("lb").innerHTML=lbHTML;
+    // Cập nhật Bảng xếp hạng tinh gọn
+    let lbH="", sorted=[...snakes].sort((a,b)=>b.sc-a.sc);
+    sorted.slice(0,5).forEach((s,idx)=>{
+        let style = (s===pSnake) ? "color:#2ecc71;font-weight:bold;" : "";
+        lbH+=`<div style="${style}">${idx+1}. ${s.n}: ${Math.floor(s.sc)}</div>`;
+    });
+    document.getElementById("lbl").innerHTML=lbH;
 
     requestAnimationFrame(loop);
 }
